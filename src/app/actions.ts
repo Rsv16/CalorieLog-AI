@@ -25,7 +25,10 @@ export async function estimateAndAugmentFood(photoDataUri: string): Promise<{ au
         const originalItem = estimation.foodItems.find(item => item.name === augmentedItem.foodItem);
         return {
             ...augmentedItem,
-            calories: originalItem?.calories
+            calories: originalItem?.calories,
+            protein: originalItem?.protein,
+            carbs: originalItem?.carbs,
+            fat: originalItem?.fat,
         };
     });
 

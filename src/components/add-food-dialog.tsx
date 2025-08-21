@@ -17,11 +17,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Camera, Plus, Loader2, Sparkles, Wand2 } from 'lucide-react';
-import type { FoodItem, EstimatedFoodItem } from '@/lib/types';
+import type { FoodItem, EstimatedFoodItem, MealType } from '@/lib/types';
 import { estimateAndAugmentFood } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
 import { Card, CardContent } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface AddFoodDialogProps {
   onAddFood: (food: Omit<FoodItem, 'id'>[]) => void;
@@ -31,12 +32,16 @@ const manualFormSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   weight: z.coerce.number().positive('Weight must be positive.'),
   calories: z.coerce.number().positive('Calories must be positive.'),
+  protein: z.coerce.number().min(0, 'Protein cannot be negative.'),
+  carbs: z.coerce.number().min(0, 'Carbs cannot be negative.'),
+  fat: z.coerce.number().min(0, 'Fat cannot be negative.'),
+  mealType: z.enum(['Breakfast', 'Lunch', 'Dinner', 'Snacks']),
 });
 
 function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void }) {
   const form = useForm<z.infer<typeof manualFormSchema>>({
     resolver: zodResolver(manualFormSchema),
-    defaultValues: { name: '', weight: 0, calories: 0 },
+    defaultValues: { name: '', weight: 0, calories: 0, protein: 0, carbs: 0, fat: 0, mealType: 'Breakfast' },
   });
 
   function onSubmit(values: z.infer<typeof manualFormSchema>) {
@@ -63,30 +68,96 @@ function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodIte
         />
         <FormField
           control={form.control}
-          name="weight"
+          name="mealType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Weight (g)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="150" {...field} />
-              </FormControl>
+              <FormLabel>Meal</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a meal" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Breakfast">Breakfast</SelectItem>
+                  <SelectItem value="Lunch">Lunch</SelectItem>
+                  <SelectItem value="Dinner">Dinner</SelectItem>
+                  <SelectItem value="Snacks">Snacks</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="calories"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Calories (kcal)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="80" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="weight"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Weight (g)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="150" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="calories"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Calories</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="80" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+           <FormField
+            control={form.control}
+            name="protein"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Protein (g)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="1" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="carbs"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Carbs (g)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="20" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="fat"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fat (g)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="0" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <Button type="submit" className="w-full">
           <Plus className="mr-2 h-4 w-4" /> Add Food
         </Button>
@@ -98,6 +169,7 @@ function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodIte
 function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number } | null>(null);
+  const [mealType, setMealType] = useState<MealType>('Breakfast');
   const { toast } = useToast();
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,11 +200,15 @@ function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodI
   const handleAddItems = () => {
     if (!results) return;
     const itemsToAdd = results.augmentedFoodItems
-      .filter(item => item.weight && item.calories)
+      .filter(item => item.weight && item.calories && item.protein !== undefined && item.carbs !== undefined && item.fat !== undefined)
       .map(item => ({
         name: item.foodItem,
         weight: item.weight!,
         calories: item.calories!,
+        protein: item.protein!,
+        carbs: item.carbs!,
+        fat: item.fat!,
+        mealType: mealType,
       }));
     onAddFood(itemsToAdd);
     setResults(null);
@@ -175,7 +251,10 @@ function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodI
                     <li key={index} className="text-sm p-2 rounded-md bg-secondary/50">
                       <p className="font-medium">{item.foodItem}</p>
                       <p className="text-muted-foreground">
-                        {item.weight ? `${item.weight}g` : item.quantity || 'N/A'}, {item.calories ? `${item.calories} kcal` : 'N/A calories'}
+                        {item.weight ? `${item.weight}g` : item.quantity || 'N/A'}, {item.calories ? `${item.calories} kcal` : 'N/A'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        P: {item.protein?.toFixed(0) ?? 'N/A'}g, C: {item.carbs?.toFixed(0) ?? 'N/A'}g, F: {item.fat?.toFixed(0) ?? 'N/A'}g
                       </p>
                       {item.reason && (
                         <p className="text-xs text-muted-foreground italic mt-1">
@@ -189,6 +268,17 @@ function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodI
               </ScrollArea>
             </CardContent>
           </Card>
+          <Select onValueChange={(value: MealType) => setMealType(value)} defaultValue={mealType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a meal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Breakfast">Breakfast</SelectItem>
+              <SelectItem value="Lunch">Lunch</SelectItem>
+              <SelectItem value="Dinner">Dinner</SelectItem>
+              <SelectItem value="Snacks">Snacks</SelectItem>
+            </SelectContent>
+          </Select>
           <Button onClick={handleAddItems} className="w-full">
             <Plus className="mr-2 h-4 w-4" /> Add All to Log
           </Button>
