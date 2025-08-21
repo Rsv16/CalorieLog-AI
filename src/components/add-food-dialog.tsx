@@ -638,5 +638,3 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
     </Dialog>
   );
 }
-
-    
