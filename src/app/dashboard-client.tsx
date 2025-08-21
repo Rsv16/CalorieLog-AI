@@ -35,7 +35,6 @@ export default function DashboardClient() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
-    localStorage.removeItem('foodItems');
     const storedItems = localStorage.getItem('foodItems');
     if (storedItems) {
         try {
