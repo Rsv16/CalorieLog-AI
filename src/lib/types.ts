@@ -16,6 +16,9 @@ export interface FoodItem extends Macros {
   date: string; // YYYY-MM-DD format
 }
 
+export type WeeklyGoal = 'lose1' | 'lose0.75' | 'lose0.5' | 'maintain' | 'gain0.5' | 'gain0.75' | 'gain1';
+
+
 export interface UserProfile {
   currentWeight: number; // in kg
   goalWeight: number; // in kg
@@ -26,6 +29,8 @@ export interface UserProfile {
   gender?: 'male' | 'female';
   height?: number; // in cm
   activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive';
+  maintenanceCalories?: number;
+  weeklyGoal?: WeeklyGoal;
 }
 
 export interface EstimatedFoodItem {

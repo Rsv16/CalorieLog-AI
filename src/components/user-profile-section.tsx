@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, WeeklyGoal } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,10 +20,22 @@ interface UserProfileSectionProps {
   onUpdateProfile: (updatedProfile: UserProfile) => void;
 }
 
+const goalAdjustments: Record<WeeklyGoal, number> = {
+  'lose1': -1100,
+  'lose0.75': -825,
+  'lose0.5': -550,
+  'maintain': 0,
+  'gain0.5': 550,
+  'gain0.75': 825,
+  'gain1': 1100,
+};
+
 const profileFormSchema = z.object({
   currentWeight: z.coerce.number().positive('Must be positive.'),
   goalWeight: z.coerce.number().positive('Must be positive.'),
   dailyGoal: z.coerce.number().positive('Must be positive.'),
+  maintenanceCalories: z.coerce.number().positive('Must be calculated.').optional(),
+  weeklyGoal: z.enum(['lose1', 'lose0.75', 'lose0.5', 'maintain', 'gain0.5', 'gain0.75', 'gain1']).optional(),
   macroGoal: z.object({
     protein: z.coerce.number().min(0, 'Cannot be negative.'),
     carbs: z.coerce.number().min(0, 'Cannot be negative.'),
@@ -43,19 +55,8 @@ const tdeeSchema = z.object({
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive'], { required_error: "Activity level is required." }),
 });
 
-type WeeklyGoal = 'lose1' | 'lose0.75' | 'lose0.5' | 'maintain' | 'gain0.5' | 'gain0.75' | 'gain1';
 
-const goalAdjustments: Record<WeeklyGoal, number> = {
-  'lose1': -1100,
-  'lose0.75': -825,
-  'lose0.5': -550,
-  'maintain': 0,
-  'gain0.5': 550,
-  'gain0.75': 825,
-  'gain1': 1100,
-};
-
-const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number) => void }) => {
+const TDEECalculator = ({ onTdeeCalculated, onMaintenanceCalculated }: { onTdeeCalculated: (tdee: number) => void, onMaintenanceCalculated: (maintenance: number) => void }) => {
   const [maintenanceTdee, setMaintenanceTdee] = useState<number | null>(null);
   const [adjustedTdee, setAdjustedTdee] = useState<number | null>(null);
   const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal>('maintain');
@@ -72,7 +73,6 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const calculateTdee = (data: z.infer<typeof tdeeSchema>) => {
     const { weight, height, age, gender, activityLevel } = data;
     
-    // Mifflin-St Jeor Equation for BMR
     let bmr;
     if (gender === 'male') {
       bmr = 10 * weight + 6.25 * height - 5 * age + 5;
@@ -91,6 +91,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
     const tdee = bmr * activityMultipliers[activityLevel];
     const roundedTdee = Math.round(tdee);
     setMaintenanceTdee(roundedTdee);
+    onMaintenanceCalculated(roundedTdee);
     setAdjustedTdee(roundedTdee + goalAdjustments[weeklyGoal]);
   };
 
@@ -113,7 +114,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
           <Calculator className="h-6 w-6" />
           <CardTitle className="text-xl font-headline">Daily Calorie Calculator</CardTitle>
         </div>
-        <CardDescription>Estimate your Total Daily Energy Expenditure (TDEE).</CardDescription>
+        <CardDescription>Estimate your maintenance calories to set an accurate goal.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -257,6 +258,8 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
   });
   
   const dailyGoalWatcher = form.watch('dailyGoal');
+  const weeklyGoalWatcher = form.watch('weeklyGoal');
+  const maintenanceCaloriesWatcher = form.watch('maintenanceCalories');
 
   const [macroPercentages, setMacroPercentages] = useState({
     protein: 40,
@@ -275,6 +278,13 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     form.setValue('macroGoal.carbs', carbsGrams, { shouldValidate: true });
     form.setValue('macroGoal.fat', fatGrams, { shouldValidate: true });
   }, [dailyGoalWatcher, macroPercentages, form]);
+  
+  useEffect(() => {
+    if (maintenanceCaloriesWatcher && weeklyGoalWatcher) {
+      const adjustment = goalAdjustments[weeklyGoalWatcher];
+      form.setValue('dailyGoal', maintenanceCaloriesWatcher + adjustment, { shouldValidate: true });
+    }
+  }, [weeklyGoalWatcher, maintenanceCaloriesWatcher, form]);
 
 
   const handlePercentageChange = (macro: 'protein' | 'carbs' | 'fat', value: string) => {
@@ -306,24 +316,16 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
   
   const handleTdeeCalculated = (tdee: number) => {
     form.setValue('dailyGoal', tdee, { shouldValidate: true });
-    
-    // Trigger form validation and then submit
-    form.trigger().then(isValid => {
-      if (isValid) {
-        onUpdateProfile(form.getValues());
-         toast({
-            title: 'Goal Updated',
-            description: `Your daily calorie goal is now ${tdee} kcal.`,
-        });
-      } else {
-        toast({
-            variant: 'destructive',
-            title: 'Update Failed',
-            description: 'Please ensure all profile fields are valid before setting a new goal.',
-        });
-      }
+    onUpdateProfile(form.getValues());
+    toast({
+        title: 'Goal Updated',
+        description: `Your daily calorie goal is now ${tdee} kcal.`,
     });
   };
+
+  const handleMaintenanceCalculated = (maintenance: number) => {
+    form.setValue('maintenanceCalories', maintenance, { shouldValidate: true });
+  }
 
   return (
     <Card className="shadow-md sticky top-6">
@@ -365,6 +367,33 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
                 )}
               />
             </div>
+             <FormField
+                control={form.control}
+                name="weeklyGoal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weekly Goal</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!form.getValues('maintenanceCalories')}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Calculate maintenance calories first" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="gain1">Gain 1 kg per week</SelectItem>
+                        <SelectItem value="gain0.75">Gain 0.75 kg per week</SelectItem>
+                        <SelectItem value="gain0.5">Gain 0.5 kg per week</SelectItem>
+                        <SelectItem value="maintain">Maintain weight</SelectItem>
+                        <SelectItem value="lose0.5">Lose 0.5 kg per week</SelectItem>
+                        <SelectItem value="lose0.75">Lose 0.75 kg per week</SelectItem>
+                        <SelectItem value="lose1">Lose 1 kg per week</SelectItem>
+                      </SelectContent>
+                    </Select>
+                     {!form.getValues('maintenanceCalories') && <p className="text-xs text-muted-foreground pt-1">Use the calculator below to enable this.</p>}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
             <FormField
               control={form.control}
@@ -416,7 +445,7 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
             <Button type="submit" className="w-full">Save Changes</Button>
           </form>
         </Form>
-        <TDEECalculator onTdeeCalculated={handleTdeeCalculated} />
+        <TDEECalculator onTdeeCalculated={handleTdeeCalculated} onMaintenanceCalculated={handleMaintenanceCalculated} />
       </CardContent>
     </Card>
   );
