@@ -43,9 +43,23 @@ const tdeeSchema = z.object({
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive'], { required_error: "Activity level is required." }),
 });
 
+type WeeklyGoal = 'lose1' | 'lose0.75' | 'lose0.5' | 'maintain' | 'gain0.5' | 'gain0.75' | 'gain1';
+
+const goalAdjustments: Record<WeeklyGoal, number> = {
+  'lose1': -1100,
+  'lose0.75': -825,
+  'lose0.5': -550,
+  'maintain': 0,
+  'gain0.5': 550,
+  'gain0.75': 825,
+  'gain1': 1100,
+};
 
 const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number) => void }) => {
-  const [tdeeResult, setTdeeResult] = useState<number | null>(null);
+  const [maintenanceTdee, setMaintenanceTdee] = useState<number | null>(null);
+  const [adjustedTdee, setAdjustedTdee] = useState<number | null>(null);
+  const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal>('maintain');
+
   const form = useForm<z.infer<typeof tdeeSchema>>({
     resolver: zodResolver(tdeeSchema),
     defaultValues: {
@@ -76,13 +90,21 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
 
     const tdee = bmr * activityMultipliers[activityLevel];
     const roundedTdee = Math.round(tdee);
-    setTdeeResult(roundedTdee);
+    setMaintenanceTdee(roundedTdee);
+    setAdjustedTdee(roundedTdee + goalAdjustments[weeklyGoal]);
   };
+
+  useEffect(() => {
+    if (maintenanceTdee !== null) {
+      setAdjustedTdee(maintenanceTdee + goalAdjustments[weeklyGoal]);
+    }
+  }, [weeklyGoal, maintenanceTdee]);
   
   const handleUseTdee = () => {
-    if (tdeeResult) {
-      onTdeeCalculated(tdeeResult);
-      setTdeeResult(null); 
+    if (adjustedTdee) {
+      onTdeeCalculated(adjustedTdee);
+      setAdjustedTdee(null); 
+      setMaintenanceTdee(null);
     }
   };
 
@@ -184,18 +206,42 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full">Calculate TDEE</Button>
+            <Button type="submit" className="w-full">Calculate Maintenance Calories</Button>
 
-            {tdeeResult && (
-              <Alert className="mt-4">
-                  <AlertTitle className="flex items-center justify-between">
-                      <span>Estimated Goal: {tdeeResult} kcal</span>
+            {maintenanceTdee !== null && (
+              <div className="space-y-4">
+                <FormItem>
+                  <FormLabel>Weekly Goal</FormLabel>
+                  <Select onValueChange={(value: WeeklyGoal) => setWeeklyGoal(value)} value={weeklyGoal}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a weekly goal..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="gain1">Gain 1 kg per week (~1100 kcal surplus)</SelectItem>
+                      <SelectItem value="gain0.75">Gain 0.75 kg per week (~825 kcal surplus)</SelectItem>
+                      <SelectItem value="gain0.5">Gain 0.5 kg per week (~550 kcal surplus)</SelectItem>
+                      <SelectItem value="maintain">Maintain weight</SelectItem>
+                      <SelectItem value="lose0.5">Lose 0.5 kg per week (~550 kcal deficit)</SelectItem>
+                      <SelectItem value="lose0.75">Lose 0.75 kg per week (~825 kcal deficit)</SelectItem>
+                      <SelectItem value="lose1">Lose 1 kg per week (~1100 kcal deficit)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+
+                {adjustedTdee !== null && (
+                  <Alert className="mt-4">
+                    <AlertTitle className="flex items-center justify-between">
+                      <span>Suggested Goal: {adjustedTdee} kcal</span>
                       <Button size="sm" onClick={handleUseTdee}>Use This Goal</Button>
-                  </AlertTitle>
-                  <AlertDescription>
-                    This is an estimate. You can adjust your daily goal above.
-                  </AlertDescription>
-              </Alert>
+                    </AlertTitle>
+                    <AlertDescription>
+                      Your maintenance is {maintenanceTdee} kcal. This goal is adjusted for your selection.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
             )}
           </form>
         </Form>
@@ -356,5 +402,3 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     </Card>
   );
 }
-
-    
