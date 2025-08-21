@@ -393,15 +393,15 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
   
   const form = useForm();
 
-  const handleSearch = useCallback(async (searchQuery: string) => {
-    if (searchQuery.trim().length < 2) {
+  const handleSearch = useCallback(async () => {
+    if (query.trim().length < 2) {
       setSearchResults([]);
       return;
     }
     setIsSearching(true);
     setSelectedFood(null);
     try {
-      const results = await searchFoodDatabase(searchQuery);
+      const results = await searchFoodDatabase(query);
       setSearchResults(results);
     } catch (error) {
       toast({
@@ -412,21 +412,7 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
     } finally {
       setIsSearching(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (query) {
-        handleSearch(query);
-      } else {
-        setSearchResults([]);
-      }
-    }, 300); // 300ms debounce delay
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [query, handleSearch]);
+  }, [query, toast]);
   
   useEffect(() => {
       if (isOpen) {
@@ -469,6 +455,11 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
     if (!calculatedMacros) return;
     onAddFood([calculatedMacros]);
     setOpen(false);
+  };
+  
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch();
   };
 
   if (selectedFood && calculatedMacros) {
@@ -532,17 +523,21 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input 
-          type="search" 
-          placeholder="e.g., 'scrambled eggs'"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="pl-10"
-        />
-         {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}
-      </div>
+        <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
+            <div className="relative flex-grow">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  type="search" 
+                  placeholder="e.g., 'scrambled eggs'"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-10"
+                />
+            </div>
+            <Button type="submit" disabled={isSearching || query.trim().length < 2}>
+                {isSearching ? <Loader2 className="h-5 w-5 animate-spin" /> : "Search"}
+            </Button>
+        </form>
 
       <ScrollArea className="h-64">
         {isSearching && searchResults.length === 0 && (
