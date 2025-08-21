@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { Inter } from 'next/font/google';
+import { PT_Sans } from 'next/font/google';
 
-const inter = Inter({
+const ptSans = PT_Sans({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-pt-sans',
+  weight: ['400', '700']
 });
 
 
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable}`}>
+    <html lang="en" className={`${ptSans.variable}`}>
       <body className="font-sans antialiased">
         {children}
         <Toaster />

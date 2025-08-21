@@ -328,11 +328,11 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
   }
 
   return (
-    <Card className="shadow-md sticky top-6">
+    <Card className="shadow-sm sticky top-6">
       <CardHeader>
         <div className="flex items-center gap-3">
             <User className="h-6 w-6" />
-            <CardTitle className="font-headline">Your Profile & Goals</CardTitle>
+            <CardTitle className="font-headline text-2xl">Your Profile & Goals</CardTitle>
         </div>
         <CardDescription>Update your personal info and nutrition targets.</CardDescription>
       </CardHeader>

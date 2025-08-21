@@ -8,8 +8,8 @@ import { FoodLog } from '@/components/food-log';
 import { AddFoodDialog } from '@/components/add-food-dialog';
 import { UserProfileSection } from '@/components/user-profile-section';
 import { Button } from '@/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays, subDays, isToday, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
+import { addDays, subDays, format, parseISO } from 'date-fns';
 
 const initialItems: FoodItem[] = [];
 
@@ -33,6 +33,8 @@ export default function DashboardClient() {
   const [isAddFoodDialogOpen, setIsAddFoodDialogOpen] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType | undefined>(undefined);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [animationDirection, setAnimationDirection] = useState<'left' | 'right'>('right');
+
 
   useEffect(() => {
     const storedItems = localStorage.getItem('foodItems');
@@ -60,11 +62,7 @@ export default function DashboardClient() {
   }, []);
   
   useEffect(() => {
-    if (foodItems.length > 0) {
-      localStorage.setItem('foodItems', JSON.stringify(foodItems));
-    } else if (localStorage.getItem('foodItems')) {
-      localStorage.removeItem('foodItems');
-    }
+    localStorage.setItem('foodItems', JSON.stringify(foodItems));
   }, [foodItems]);
 
   useEffect(() => {
@@ -95,6 +93,7 @@ export default function DashboardClient() {
   };
 
   const handleDateChange = (direction: 'next' | 'prev') => {
+    setAnimationDirection(direction === 'next' ? 'right' : 'left');
     if (direction === 'next') {
       setCurrentDate(addDays(currentDate, 1));
     } else {
@@ -106,28 +105,18 @@ export default function DashboardClient() {
     const formattedDate = getFormattedDate(currentDate);
     return foodItems.filter(item => item.date === formattedDate);
   }, [foodItems, currentDate]);
-  
-  const dateDisplay = isToday(currentDate)
-    ? `Today, ${format(currentDate, 'MMMM d')}`
-    : format(currentDate, 'eeee, MMMM d');
 
   return (
     <div className="container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <div className="flex justify-center items-center gap-4 my-4">
-          <Button variant="outline" size="icon" onClick={() => handleDateChange('prev')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-xl font-bold whitespace-nowrap">{dateDisplay}</h2>
-          <Button variant="outline" size="icon" onClick={() => handleDateChange('next')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
         <CalorieSummary items={itemsForSelectedDate} userProfile={userProfile} />
         <FoodLog 
             items={itemsForSelectedDate} 
             onDeleteItem={handleDeleteItem} 
             onAddFood={openAddFoodDialog}
+            currentDate={currentDate}
+            onDateChange={handleDateChange}
+            animationDirection={animationDirection}
         />
       </div>
       <div className="lg:col-span-1">

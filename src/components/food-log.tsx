@@ -3,13 +3,17 @@ import type { FoodItem, MealType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
-import { Separator } from './ui/separator';
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, isToday } from 'date-fns';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface FoodLogProps {
   items: FoodItem[];
   onDeleteItem: (id: string) => void;
   onAddFood: (mealType: MealType) => void;
+  currentDate: Date;
+  onDateChange: (direction: 'next' | 'prev') => void;
+  animationDirection: 'left' | 'right';
 }
 
 const MealSection = ({ 
@@ -76,7 +80,7 @@ const MealSection = ({
   );
 };
 
-export function FoodLog({ items, onDeleteItem, onAddFood }: FoodLogProps) {
+export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateChange, animationDirection }: FoodLogProps) {
   const mealItems: Record<MealType, FoodItem[]> = {
     Breakfast: items.filter(i => i.mealType === 'Breakfast'),
     Lunch: items.filter(i => i.mealType === 'Lunch'),
@@ -84,17 +88,61 @@ export function FoodLog({ items, onDeleteItem, onAddFood }: FoodLogProps) {
     Snacks: items.filter(i => i.mealType === 'Snacks'),
   };
 
+  const dateDisplay = isToday(currentDate)
+    ? `Today, ${format(currentDate, 'MMMM d')}`
+    : format(currentDate, 'eeee, MMMM d');
+
+  const variants = {
+    enter: (direction: 'left' | 'right') => ({
+      x: direction === 'right' ? '100%' : '-100%',
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: 'left' | 'right') => ({
+      x: direction === 'right' ? '-100%' : '100%',
+      opacity: 0,
+    }),
+  };
+
   return (
-    <Card className="shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold tracking-tight">Daily Log</CardTitle>
-        <CardDescription>A detailed log of your meals and snacks for the selected day.</CardDescription>
+    <Card className="shadow-lg overflow-hidden">
+       <CardHeader>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle className="text-2xl font-bold tracking-tight">Daily Log</CardTitle>
+            <CardDescription>Your meals and snacks for the selected day.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => onDateChange('prev')}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-lg font-semibold whitespace-nowrap text-center w-48">{dateDisplay}</h2>
+            <Button variant="outline" size="icon" onClick={() => onDateChange('next')}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="divide-y divide-border">
-          <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-          <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-          <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-          <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+          <AnimatePresence initial={false} custom={animationDirection} mode="wait">
+             <motion.div
+                key={format(currentDate, 'yyyy-MM-dd')}
+                custom={animationDirection}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+              >
+              <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+              <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+              <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+              <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+            </motion.div>
+          </AnimatePresence>
       </CardContent>
     </Card>
   );

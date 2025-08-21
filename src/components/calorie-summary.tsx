@@ -18,7 +18,7 @@ export function CalorieSummary({ items, userProfile }: CalorieSummaryProps) {
   const progress = userProfile.dailyGoal > 0 ? (totalCalories / userProfile.dailyGoal) * 100 : 0;
 
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-sm">
       <CardHeader>
         <CardTitle className="text-2xl font-bold tracking-tight">Summary</CardTitle>
         <CardDescription>Your calorie and macro intake for this day.</CardDescription>
