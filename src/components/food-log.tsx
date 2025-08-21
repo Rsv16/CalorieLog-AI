@@ -3,9 +3,11 @@ import type { FoodItem, MealType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 
 interface FoodLogProps {
   items: FoodItem[];
@@ -20,12 +22,16 @@ const MealSection = ({
     mealType, 
     items, 
     onDeleteItem, 
-    onAddFood 
+    onAddFood,
+    onToggleFavorite,
+    favorites,
 }: { 
     mealType: MealType, 
     items: FoodItem[], 
     onDeleteItem: (id: string) => void,
-    onAddFood: (mealType: MealType) => void
+    onAddFood: (mealType: MealType) => void,
+    onToggleFavorite: (item: FoodItem) => void,
+    favorites: string[],
 }) => {
   const totalCalories = items.reduce((sum, item) => sum + item.calories, 0);
 
@@ -50,7 +56,7 @@ const MealSection = ({
                  <TableHead className="text-right">Weight</TableHead>
                  <TableHead className="text-right hidden sm:table-cell">Macros (P/C/F)</TableHead>
                  <TableHead className="text-right">Calories</TableHead>
-                 <TableHead className="w-[50px]"></TableHead>
+                 <TableHead className="w-[100px]"></TableHead>
                </TableRow>
              </TableHeader>
              <TableBody>
@@ -60,7 +66,11 @@ const MealSection = ({
                    <TableCell className="text-right">{item.weight}g</TableCell>
                    <TableCell className="text-right hidden sm:table-cell">{`${item.protein}g / ${item.carbs}g / ${item.fat}g`}</TableCell>
                    <TableCell className="text-right font-semibold">{item.calories}</TableCell>
-                   <TableCell>
+                   <TableCell className="flex justify-end gap-1">
+                     <Button variant="ghost" size="icon" onClick={() => onToggleFavorite(item)} aria-label={`Favorite ${item.name}`}>
+                       <Heart className={`h-4 w-4 ${favorites.includes(item.name) ? 'text-red-500 fill-current' : ''}`} />
+                       <span className="sr-only">Favorite item</span>
+                     </Button>
                      <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label={`Delete ${item.name}`}>
                        <Trash2 className="h-4 w-4" />
                        <span className="sr-only">Delete item</span>
@@ -81,6 +91,38 @@ const MealSection = ({
 };
 
 export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateChange, animationDirection }: FoodLogProps) {
+  const { toast } = useToast();
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    const storedFavorites = localStorage.getItem('favoriteFoodItems');
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites).map((fav: Omit<FoodItem, 'id' | 'date'>) => fav.name));
+    }
+  }, []);
+
+  const handleToggleFavorite = (item: FoodItem) => {
+    const storedFavoritesJSON = localStorage.getItem('favoriteFoodItems');
+    let currentFavorites: Omit<FoodItem, 'id' | 'date'>[] = storedFavoritesJSON ? JSON.parse(storedFavoritesJSON) : [];
+    
+    const isFavorited = currentFavorites.some(fav => fav.name === item.name);
+
+    if (isFavorited) {
+      // Remove from favorites
+      currentFavorites = currentFavorites.filter(fav => fav.name !== item.name);
+      setFavorites(currentFavorites.map(fav => fav.name));
+      toast({ title: `${item.name} removed from favorites.` });
+    } else {
+      // Add to favorites
+      const { id, date, ...favItem } = item;
+      currentFavorites.push(favItem);
+      setFavorites(currentFavorites.map(fav => fav.name));
+      toast({ title: `${item.name} added to favorites!` });
+    }
+    
+    localStorage.setItem('favoriteFoodItems', JSON.stringify(currentFavorites));
+  };
+  
   const mealItems: Record<MealType, FoodItem[]> = {
     Breakfast: items.filter(i => i.mealType === 'Breakfast'),
     Lunch: items.filter(i => i.mealType === 'Lunch'),
@@ -135,10 +177,10 @@ export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateCha
                 exit="exit"
                 transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
               >
-              <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-              <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-              <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
-              <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+              <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
             </motion.div>
           </AnimatePresence>
       </CardContent>

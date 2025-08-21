@@ -16,7 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils, ChefHat, Check } from 'lucide-react';
+import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils, ChefHat, Heart, Trash2 } from 'lucide-react';
 import type { FoodItem, EstimatedFoodItem, MealType } from '@/lib/types';
 import { estimateAndAugmentFood, searchFoodDatabase, reimagineRecipeWithAI } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -732,6 +732,77 @@ function RecipeReimaginer() {
     );
 }
 
+function Favorites({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
+    const [favorites, setFavorites] = useState<Omit<FoodItem, 'id' | 'date'>[]>([]);
+    const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Breakfast');
+  
+    useEffect(() => {
+        const storedFavorites = localStorage.getItem('favoriteFoodItems');
+        if (storedFavorites) {
+            setFavorites(JSON.parse(storedFavorites));
+        }
+    }, []);
+
+    const handleAddFavorite = (food: Omit<FoodItem, 'id' | 'date'>) => {
+        onAddFood([{ ...food, mealType }]);
+        setOpen(false);
+    };
+
+    const handleRemoveFavorite = (foodToRemove: Omit<FoodItem, 'id' | 'date'>) => {
+        const newFavorites = favorites.filter(fav => fav.name !== foodToRemove.name); // Simple name check for removal
+        setFavorites(newFavorites);
+        localStorage.setItem('favoriteFoodItems', JSON.stringify(newFavorites));
+    };
+
+    if (favorites.length === 0) {
+        return (
+             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground p-4">
+                <Heart className="h-8 w-8 mb-2" />
+                <p>You haven't favorited any foods yet.</p>
+                <p className="text-sm">Click the heart icon next to a food in your log to add it here.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <Select onValueChange={(value: MealType) => setMealType(value)} defaultValue={mealType}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Select a meal to add to" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Breakfast">Breakfast</SelectItem>
+                    <SelectItem value="Lunch">Lunch</SelectItem>
+                    <SelectItem value="Dinner">Dinner</SelectItem>
+                    <SelectItem value="Snacks">Snacks</SelectItem>
+                </SelectContent>
+            </Select>
+            <ScrollArea className="h-64">
+                 <div className="space-y-2 pt-2">
+                    {favorites.map((food, i) => (
+                        <div key={i} className="w-full flex justify-between items-center p-3 rounded-md hover:bg-secondary transition-colors">
+                            <div>
+                                <p className="font-semibold">{food.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {food.calories} kcal, {food.weight}g
+                                </p>
+                            </div>
+                           <div className='flex gap-1'>
+                             <Button size="sm" onClick={() => handleAddFavorite(food)}>
+                                <Plus className="mr-2 h-4 w-4" /> Add
+                             </Button>
+                             <Button size="sm" variant="ghost" onClick={() => handleRemoveFavorite(food)}>
+                                <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </div>
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </div>
+    );
+}
+
 export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
   const [activeTab, setActiveTab] = useState('search');
   
@@ -761,21 +832,25 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
            <DialogDescription>
-            Search our database, scan with AI, or enter manually.
+            Search our database, use a favorite, or enter manually.
           </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="search">
-              <Search className="mr-2 h-4 w-4" />
+              <Search className="mr-1 h-4 w-4" />
               Search
             </TabsTrigger>
+             <TabsTrigger value="favorites">
+              <Heart className="mr-1 h-4 w-4 text-red-400" />
+              Favorites
+            </TabsTrigger>
             <TabsTrigger value="camera">
-              <Sparkles className="mr-2 h-4 w-4 text-purple-400" />
+              <Sparkles className="mr-1 h-4 w-4 text-purple-400" />
               AI Scan
             </TabsTrigger>
              <TabsTrigger value="recipe">
-              <ChefHat className="mr-2 h-4 w-4" />
+              <ChefHat className="mr-1 h-4 w-4" />
               Recipe AI
             </TabsTrigger>
             <TabsTrigger value="manual">Manual</TabsTrigger>
@@ -783,6 +858,9 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
            <TabsContent value="search" className="pt-4">
             <FoodSearch onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} isOpen={isOpen}/>
            </TabsContent>
+            <TabsContent value="favorites" className="pt-4">
+              <Favorites onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
+            </TabsContent>
           <TabsContent value="camera" className="pt-4">
             <CameraEstimation onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
           </TabsContent>
@@ -797,3 +875,4 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
     </Dialog>
   );
 }
+
