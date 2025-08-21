@@ -3,11 +3,11 @@
 import { augmentFoodDetails } from '@/ai/flows/augment-food-details';
 import { estimateCaloriesFromImage } from '@/ai/flows/estimate-calories-from-image';
 import { searchFood } from '@/ai/flows/search-food-flow';
-import { reimagineRecipe } from '@/ai/flows/reimagine-recipe-flow';
+import { logFoodFromText } from '@/ai/flows/log-food-from-text';
 import type { AugmentFoodDetailsInput } from '@/ai/flows/augment-food-details';
 import type { EstimatedFoodItem } from '@/lib/types';
 import type { SearchFoodOutput } from '@/ai/flows/search-food-flow';
-import type { ReimagineRecipeInput, ReimagineRecipeOutput } from '@/ai/flows/reimagine-recipe-flow';
+import type { LogFoodFromTextOutput } from '@/ai/flows/log-food-from-text';
 
 
 export async function estimateAndAugmentFood(photoDataUri: string): Promise<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number }> {
@@ -54,12 +54,12 @@ export async function searchFoodDatabase(query: string): Promise<SearchFoodOutpu
   }
 }
 
-export async function reimagineRecipeWithAI(input: ReimagineRecipeInput): Promise<ReimagineRecipeOutput> {
+export async function logFoodFromTextWithAI(query: string): Promise<LogFoodFromTextOutput> {
     try {
-        const result = await reimagineRecipe(input);
+        const result = await logFoodFromText({ query });
         return result;
     } catch (error) {
-        console.error('Error reimagining recipe:', error);
-        throw new Error('Failed to reimagine the recipe.');
+        console.error('Error logging food from text:', error);
+        throw new Error('Failed to parse your request.');
     }
 }

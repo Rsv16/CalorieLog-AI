@@ -16,18 +16,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils, ChefHat, Heart, Trash2 } from 'lucide-react';
+import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils, Mic, Heart, Trash2 } from 'lucide-react';
 import type { FoodItem, EstimatedFoodItem, MealType } from '@/lib/types';
-import { estimateAndAugmentFood, searchFoodDatabase, reimagineRecipeWithAI } from '@/app/actions';
+import { estimateAndAugmentFood, searchFoodDatabase, logFoodFromTextWithAI } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { SearchFoodOutput } from '@/ai/flows/search-food-flow';
-import type { ReimagineRecipeOutput } from '@/ai/flows/reimagine-recipe-flow';
+import type { LogFoodFromTextOutput } from '@/ai/flows/log-food-from-text';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Textarea } from './ui/textarea';
 
 interface AddFoodDialogProps {
   onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void;
@@ -577,159 +576,146 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
   );
 }
 
-const recipeFormSchema = z.object({
-  ingredients: z.string().min(10, "Please provide a list of ingredients."),
-  instructions: z.string().min(10, "Please provide the instructions."),
-  goal: z.enum(['lower-calorie', 'higher-protein', 'lower-fat', 'lower-carb', 'vegan', 'vegetarian']),
-});
+function VoiceLogger({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<LogFoodFromTextOutput | null>(null);
+  const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Breakfast');
+  const { toast } = useToast();
+  const recognitionRef = useRef<any>(null);
 
-function RecipeReimaginer() {
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const [result, setResult] = useState<ReimagineRecipeOutput | null>(null);
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
 
-    const form = useForm<z.infer<typeof recipeFormSchema>>({
-        resolver: zodResolver(recipeFormSchema),
-        defaultValues: {
-            ingredients: '',
-            instructions: '',
-            goal: 'lower-calorie',
-        }
-    });
-    
-    async function onSubmit(values: z.infer<typeof recipeFormSchema>) {
-        setIsLoading(true);
-        setResult(null);
-        try {
-            const response = await reimagineRecipeWithAI(values);
-            setResult(response);
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Failed to Reimagine Recipe',
-                description: 'The AI could not process your request. Please try again.',
-            });
-        } finally {
-            setIsLoading(false);
-        }
+      recognitionRef.current.onresult = (event: any) => {
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        processTranscript(text);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
     }
+  }, []);
 
-    const NutritionCard = ({ title, nutrition }: { title: string, nutrition: ReimagineRecipeOutput['originalNutrition']}) => (
-        <Card className="flex-1">
-            <CardHeader>
-                <CardTitle className="text-lg">{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center">
-                <p className="text-3xl font-bold text-primary">{nutrition.calories} <span className="text-lg font-normal text-muted-foreground">kcal</span></p>
-                <div className="flex justify-around text-sm mt-2 text-muted-foreground">
-                    <span>P: {nutrition.protein}g</span>
-                    <span>C: {nutrition.carbs}g</span>
-                    <span>F: {nutrition.fat}g</span>
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+        toast({ variant: 'destructive', title: "Voice recognition not supported in your browser." });
+        return;
+    }
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      setTranscript('');
+      setResults(null);
+      recognitionRef.current.start();
+      setIsRecording(true);
+    }
+  };
+
+  const processTranscript = async (text: string) => {
+      if (text.trim().length === 0) return;
+      setIsLoading(true);
+      try {
+          const result = await logFoodFromTextWithAI(text);
+          setResults(result);
+      } catch (error) {
+           toast({ variant: 'destructive', title: "Could not process request.", description: "The AI failed to understand the text. Please try again." });
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
+  const handleAddItems = () => {
+      if (!results) return;
+      const itemsToAdd = results.map(item => ({ ...item, mealType }));
+      onAddFood(itemsToAdd);
+      setResults(null);
+      setTranscript('');
+      setOpen(false);
+  };
+  
+  const totalCalories = useMemo(() => {
+    return results?.reduce((sum, item) => sum + item.calories, 0) || 0;
+  }, [results]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col items-center justify-center gap-4">
+        <Button onClick={toggleRecording} size="lg" className={`rounded-full h-20 w-20 p-0 shadow-lg ${isRecording ? 'bg-red-500 hover:bg-red-600' : ''}`}>
+          <Mic className="h-10 w-10" />
+        </Button>
+        <p className="text-muted-foreground text-sm">{isRecording ? 'Listening...' : 'Tap to speak'}</p>
+      </div>
+      
+      {transcript && (
+          <div className="p-3 rounded-md bg-secondary text-center italic">"{transcript}"</div>
+      )}
+      
+      {isLoading && (
+        <div className="flex flex-col items-center justify-center space-y-2 p-8 border-2 border-dashed rounded-lg">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Finding foods...</p>
+        </div>
+      )}
+
+      {results && results.length > 0 && (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+                <div className='flex justify-between items-center'>
+                    <h3 className="font-semibold">Identified Items</h3>
+                    <p className="text-lg font-bold text-primary">{totalCalories} kcal</p>
                 </div>
+              <ScrollArea className="h-48 mt-2">
+                <ul className="space-y-2">
+                  {results.map((item, index) => (
+                    <li key={index} className="text-sm p-2 rounded-md bg-secondary/50">
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-muted-foreground">
+                        {item.weight}g, {item.calories} kcal
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        P: {item.protein}g, C: {item.carbs}g, F: {item.fat}g
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
             </CardContent>
-        </Card>
-    );
+          </Card>
+          <Select onValueChange={(value: MealType) => setMealType(value)} defaultValue={mealType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a meal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Breakfast">Breakfast</SelectItem>
+              <SelectItem value="Lunch">Lunch</SelectItem>
+              <SelectItem value="Dinner">Dinner</SelectItem>
+              <SelectItem value="Snacks">Snacks</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleAddItems} className="w-full">
+            <Plus className="mr-2 h-4 w-4" /> Add All to Log
+          </Button>
+        </div>
+      )}
 
-    return (
-        <ScrollArea className="h-96">
-            <div className="space-y-4 pr-4">
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                         <FormField
-                            control={form.control}
-                            name="ingredients"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Ingredients</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="e.g.,&#10;1 cup all-purpose flour&#10;1/2 cup sugar&#10;2 large eggs" {...field} className="h-28"/>
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="instructions"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Instructions</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="e.g.,&#10;1. Preheat oven to 350°F (175°C).&#10;2. Mix dry ingredients in a large bowl." {...field} className="h-28"/>
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="goal"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>My Goal Is To Make It...</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="lower-calorie">Lower Calorie</SelectItem>
-                                            <SelectItem value="higher-protein">Higher Protein</SelectItem>
-                                            <SelectItem value="lower-fat">Lower Fat</SelectItem>
-                                            <SelectItem value="lower-carb">Lower Carb</SelectItem>
-                                            <SelectItem value="vegan">Vegan</SelectItem>
-                                            <SelectItem value="vegetarian">Vegetarian</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reimagining...</> : <><Sparkles className="mr-2 h-4 w-4" /> Reimagine with AI</>}
-                        </Button>
-                    </form>
-                </Form>
-                
-                {isLoading && (
-                    <div className="space-y-4 pt-4">
-                        <Skeleton className="h-24 w-full" />
-                        <Skeleton className="h-48 w-full" />
-                    </div>
-                )}
+       {results && results.length === 0 && !isLoading && (
+        <div className="p-4 border-2 border-dashed rounded-lg">
+            <p className="text-muted-foreground text-center">No items were found. Please try speaking again.</p>
+        </div>
+      )}
 
-                {result && (
-                    <div className="space-y-4 pt-4">
-                        <div className="flex gap-4">
-                            <NutritionCard title="Original" nutrition={result.originalNutrition} />
-                            <NutritionCard title="Reimagined" nutrition={result.reimaginedNutrition} />
-                        </div>
-                         <Card>
-                            <CardHeader>
-                                <CardTitle>{result.reimaginedRecipe.title}</CardTitle>
-                                <CardDescription>{result.reimaginedRecipe.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <h4 className="font-semibold mb-2">New Ingredients:</h4>
-                                    <ul className="list-disc list-inside text-sm space-y-1">
-                                        {result.reimaginedRecipe.ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold mb-2">New Instructions:</h4>
-                                     <ol className="list-decimal list-inside text-sm space-y-2">
-                                        {result.reimaginedRecipe.instructions.map((step, i) => <li key={i}>{step}</li>)}
-                                    </ol>
-                                </div>
-                                <Alert>
-                                    <Wand2 className="h-4 w-4"/>
-                                    <AlertTitle>Nutrition Analysis</AlertTitle>
-                                    <AlertDescription>{result.reimaginedRecipe.nutritionAnalysis}</AlertDescription>
-                                </Alert>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-            </div>
-        </ScrollArea>
-    );
+    </div>
+  );
 }
 
 function Favorites({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
@@ -803,6 +789,14 @@ function Favorites({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: 
     );
 }
 
+// Add this to your component file to fix TypeScript errors for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
   const [activeTab, setActiveTab] = useState('search');
   
@@ -849,9 +843,9 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
               <Sparkles className="mr-1 h-4 w-4 text-purple-400" />
               AI Scan
             </TabsTrigger>
-             <TabsTrigger value="recipe">
-              <ChefHat className="mr-1 h-4 w-4" />
-              Recipe AI
+             <TabsTrigger value="voice">
+              <Mic className="mr-1 h-4 w-4" />
+              Voice
             </TabsTrigger>
             <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
@@ -864,8 +858,8 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
           <TabsContent value="camera" className="pt-4">
             <CameraEstimation onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
           </TabsContent>
-           <TabsContent value="recipe" className="pt-4">
-            <RecipeReimaginer />
+           <TabsContent value="voice" className="pt-4">
+             <VoiceLogger onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
           </TabsContent>
           <TabsContent value="manual" className="pt-4">
             <ManualFoodForm onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} isOpen={isOpen} />
@@ -875,4 +869,3 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
     </Dialog>
   );
 }
-
