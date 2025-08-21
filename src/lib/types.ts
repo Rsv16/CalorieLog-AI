@@ -1,3 +1,4 @@
+
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snacks';
 
 export interface Macros {
@@ -19,6 +20,11 @@ export interface UserProfile {
   goalWeight: number; // in kg
   dailyGoal: number; // in kcal
   macroGoal: Macros;
+  // For TDEE
+  age?: number;
+  gender?: 'male' | 'female';
+  height?: number; // in cm
+  activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive';
 }
 
 export interface EstimatedFoodItem {
@@ -31,3 +37,5 @@ export interface EstimatedFoodItem {
   fat?: number;
   reason?: string;
 }
+
+    

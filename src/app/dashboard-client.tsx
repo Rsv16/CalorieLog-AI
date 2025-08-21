@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,6 +19,10 @@ const initialProfile: UserProfile = {
     goalWeight: 72,
     dailyGoal: 2200,
     macroGoal: { protein: 150, carbs: 250, fat: 70 },
+    age: 30,
+    gender: 'male',
+    height: 180,
+    activityLevel: 'moderate',
 };
 
 export default function DashboardClient() {
@@ -85,3 +90,5 @@ export default function DashboardClient() {
     </div>
   );
 }
+
+    
