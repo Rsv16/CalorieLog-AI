@@ -51,8 +51,10 @@ function ManualFoodForm({ onAddFood, setOpen, defaultMealType }: { onAddFood: (f
   });
   
   useEffect(() => {
-    form.reset({ mealType: defaultMealType, name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined });
-  }, [defaultMealType, form]);
+    if (isOpen) {
+      form.reset({ mealType: defaultMealType, name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined });
+    }
+  }, [defaultMealType, form, isOpen]);
 
   function onSubmit(values: z.infer<typeof manualFormSchema>) {
     onAddFood([values]);
@@ -379,7 +381,7 @@ function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: 
 
 type FoodSearchResult = SearchFoodOutput[0];
 
-function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; }) {
+function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchFoodOutput>([]);
@@ -389,35 +391,56 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
   const [servingSize, setServingSize] = useState<number>(100);
   const { toast } = useToast();
   
-  // Dummy form for context provider
   const form = useForm();
 
-  useEffect(() => {
-    if (defaultMealType) {
-      setMealType(defaultMealType);
-    }
-  }, [defaultMealType]);
-
-  const handleSearch = useCallback(async () => {
-    if (query.trim().length < 2) {
-        setSearchResults([]);
-        return;
+  const handleSearch = useCallback(async (searchQuery: string) => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
     }
     setIsSearching(true);
     setSelectedFood(null);
     try {
-        const results = await searchFoodDatabase(query);
-        setSearchResults(results);
+      const results = await searchFoodDatabase(searchQuery);
+      setSearchResults(results);
     } catch (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Search Failed',
-            description: 'Could not fetch food data. Please try again.',
-        });
+      toast({
+        variant: 'destructive',
+        title: 'Search Failed',
+        description: 'Could not fetch food data. Please try again.',
+      });
     } finally {
-        setIsSearching(false);
+      setIsSearching(false);
     }
-  }, [query, toast]);
+  }, [toast]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (query) {
+        handleSearch(query);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [query, handleSearch]);
+  
+  useEffect(() => {
+      if (isOpen) {
+          // Reset state when dialog opens
+          setQuery('');
+          setSearchResults([]);
+          setSelectedFood(null);
+          if (defaultMealType) {
+              setMealType(defaultMealType);
+          } else {
+              setMealType('Breakfast');
+          }
+      }
+  }, [isOpen, defaultMealType]);
 
   const handleSelectFood = (food: FoodSearchResult) => {
     setSelectedFood(food);
@@ -446,10 +469,6 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
     if (!calculatedMacros) return;
     onAddFood([calculatedMacros]);
     setOpen(false);
-    // Reset state
-    setQuery('');
-    setSearchResults([]);
-    setSelectedFood(null);
   };
 
   if (selectedFood && calculatedMacros) {
@@ -466,12 +485,16 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
                      <div className="grid grid-cols-2 gap-4">
                         <FormItem>
                             <FormLabel>Serving Size</FormLabel>
-                            <Input type="number" value={servingSize} onChange={e => setServingSize(parseFloat(e.target.value) || 0)} />
+                             <FormControl>
+                                <Input type="number" value={servingSize} onChange={e => setServingSize(parseFloat(e.target.value) || 0)} />
+                             </FormControl>
                         </FormItem>
                          <FormItem>
                             <FormLabel>Unit</FormLabel>
                             <Select onValueChange={setServingUnit} value={servingUnit}>
-                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <FormControl>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
+                                </FormControl>
                                 <SelectContent>
                                     {selectedFood.servingUnits.map(unit => (
                                         <SelectItem key={unit.name} value={unit.name}>{unit.name}</SelectItem>
@@ -509,28 +532,32 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input 
           type="search" 
           placeholder="e.g., 'scrambled eggs'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          className="pl-10"
         />
-        <Button onClick={handleSearch} disabled={isSearching}>
-            {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
-        </Button>
+         {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}
       </div>
 
       <ScrollArea className="h-64">
-        {isSearching && (
+        {isSearching && searchResults.length === 0 && (
             <div className="space-y-2 pt-2">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
             </div>
         )}
-        {!isSearching && searchResults.length === 0 && (
+        {!isSearching && query && searchResults.length === 0 && (
+             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4">
+                <p>No results found for "{query}".</p>
+            </div>
+        )}
+        {!query && !isSearching && searchResults.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4">
                 <Utensils className="h-8 w-8 mb-2" />
                 <p>Search for a food to begin.</p>
@@ -554,16 +581,23 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
 }
 
 export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
+  const [activeTab, setActiveTab] = useState('search');
+  
+  useEffect(() => {
+      if (!isOpen) {
+          // Reset to search tab when dialog is closed
+          setActiveTab('search');
+      }
+  }, [isOpen]);
+  
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
-          <DialogDescription>
-            Search our database, scan with AI, or add manually.
-          </DialogDescription>
+           {!defaultMealType && activeTab === 'manual' && <FormMessage>Please select a meal type.</FormMessage>}
         </DialogHeader>
-        <Tabs defaultValue="search" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="search">
               <Search className="mr-2 h-4 w-4" />
@@ -575,9 +609,34 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
             </TabsTrigger>
             <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
-          <TabsContent value="search" className="pt-4">
-            <FoodSearch onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
-          </TabsContent>
+           <TabsContent value="search" className="pt-4">
+            {!defaultMealType ? (
+                 <FormField
+                    name="mealType"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Meal</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a meal" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            <SelectItem value="Breakfast">Breakfast</SelectItem>
+                            <SelectItem value="Lunch">Lunch</SelectItem>
+                            <SelectItem value="Dinner">Dinner</SelectItem>
+                            <SelectItem value="Snacks">Snacks</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            ) : (
+                <FoodSearch onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} isOpen={isOpen}/>
+            )}
+           </TabsContent>
           <TabsContent value="camera" className="pt-4">
             <CameraEstimation onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
           </TabsContent>
@@ -589,3 +648,5 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
     </Dialog>
   );
 }
+
+    
