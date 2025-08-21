@@ -10,11 +10,7 @@ import { UserProfileSection } from '@/components/user-profile-section';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
-const initialItems: FoodItem[] = [
-  { id: '1', name: 'Coffee', weight: 250, calories: 5, protein: 0, carbs: 1, fat: 0, mealType: 'Breakfast' },
-  { id: '2', name: 'Oatmeal with berries', weight: 200, calories: 350, protein: 10, carbs: 60, fat: 8, mealType: 'Breakfast' },
-  { id: '3', name: 'Protein Shake', weight: 300, calories: 250, protein: 30, carbs: 15, fat: 7, mealType: 'Snacks' },
-];
+const initialItems: FoodItem[] = [];
 
 const initialProfile: UserProfile = {
     currentWeight: 75,
