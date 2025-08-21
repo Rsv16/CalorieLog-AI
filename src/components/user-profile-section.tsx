@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { User, Target, Flame, PieChart, Calculator, RefreshCw } from 'lucide-react';
+import { User, Target, Flame, PieChart, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -29,30 +29,29 @@ const profileFormSchema = z.object({
     carbs: z.coerce.number().min(0, 'Cannot be negative.'),
     fat: z.coerce.number().min(0, 'Cannot be negative.'),
   }),
-  // Fields for TDEE calculator
   age: z.coerce.number().positive('Must be positive.').optional(),
   gender: z.enum(['male', 'female']).optional(),
   height: z.coerce.number().positive('Must be positive.').optional(),
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive']).optional(),
 });
 
+const tdeeSchema = z.object({
+  weight: z.coerce.number({ required_error: "Weight is required." }).positive(),
+  height: z.coerce.number({ required_error: "Height is required." }).positive(),
+  age: z.coerce.number({ required_error: "Age is required." }).positive(),
+  gender: z.enum(['male', 'female'], { required_error: "Gender is required." }),
+  activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive'], { required_error: "Activity level is required." }),
+});
+
+
 const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number) => void }) => {
   const [tdeeResult, setTdeeResult] = useState<number | null>(null);
-  const form = useForm({
-    defaultValues: {
-      weight: 0,
-      height: 0,
-      age: 0,
-      gender: 'male' as 'male' | 'female',
-      activityLevel: 'sedentary' as 'sedentary' | 'light' | 'moderate' | 'active' | 'veryActive',
-    },
+  const form = useForm<z.infer<typeof tdeeSchema>>({
+    resolver: zodResolver(tdeeSchema),
   });
 
-  const calculateTdee = (data: typeof form.getValues) => {
+  const calculateTdee = (data: z.infer<typeof tdeeSchema>) => {
     const { weight, height, age, gender, activityLevel } = data;
-    if (!weight || !height || !age) {
-        return;
-    }
     
     // Mifflin-St Jeor Equation for BMR
     let bmr;
@@ -78,38 +77,33 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const handleUseTdee = () => {
     if (tdeeResult) {
       onTdeeCalculated(tdeeResult);
-      setTdeeResult(null); // Reset after using
+      setTdeeResult(null); 
     }
   };
-  
-  // Trigger calculation whenever a value changes
-  const watchedValues = form.watch();
-  useState(() => {
-    calculateTdee(watchedValues);
-  });
 
   return (
-    <Card className="mt-6 bg-secondary/50">
+    <Card className="mt-6 bg-secondary/30">
       <CardHeader>
         <div className="flex items-center gap-3">
           <Calculator className="h-6 w-6" />
-          <CardTitle className="text-xl">Daily Calorie Calculator</CardTitle>
+          <CardTitle className="text-xl font-headline">Daily Calorie Calculator</CardTitle>
         </div>
         <CardDescription>Estimate your Total Daily Energy Expenditure (TDEE).</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onChange={form.handleSubmit(calculateTdee)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(calculateTdee)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <FormField
+               <FormField
                 control={form.control}
                 name="weight"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Weight (kg)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" placeholder="75" {...field} />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
                />
@@ -120,8 +114,9 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                   <FormItem>
                     <FormLabel>Height (cm)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" placeholder="180" {...field} />
                     </FormControl>
+                     <FormMessage />
                   </FormItem>
                 )}
               />
@@ -132,8 +127,9 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <FormItem>
                     <FormLabel>Age</FormLabel>
                     <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" placeholder="30" {...field} />
                     </FormControl>
+                     <FormMessage />
                     </FormItem>
                 )}
                />
@@ -146,7 +142,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                         <SelectTrigger>
-                            <SelectValue />
+                            <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -154,6 +150,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                         <SelectItem value="female">Female</SelectItem>
                         </SelectContent>
                     </Select>
+                     <FormMessage />
                     </FormItem>
                 )}
               />
@@ -167,27 +164,32 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                         <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="sedentary">Sedentary (little or no exercise)</SelectItem>
-                        <SelectItem value="light">Lightly active (light exercise/sports 1-3 days/week)</SelectItem>
-                        <SelectItem value="moderate">Moderately active (moderate exercise/sports 3-5 days/week)</SelectItem>
-                        <SelectItem value="active">Very active (hard exercise/sports 6-7 days a week)</SelectItem>
-                        <SelectItem value="veryActive">Super active (very hard exercise/physical job)</SelectItem>
+                        <SelectItem value="sedentary">Sedentary</SelectItem>
+                        <SelectItem value="light">Lightly active</SelectItem>
+                        <SelectItem value="moderate">Moderately active</SelectItem>
+                        <SelectItem value="active">Very active</SelectItem>
+                        <SelectItem value="veryActive">Super active</SelectItem>
                     </SelectContent>
                     </Select>
+                    <FormMessage />
                 </FormItem>
               )}
             />
+            <Button type="submit" className="w-full">Calculate TDEE</Button>
 
             {tdeeResult && (
-              <Alert>
+              <Alert className="mt-4">
                   <AlertTitle className="flex items-center justify-between">
                       <span>Estimated Goal: {tdeeResult} kcal</span>
                       <Button size="sm" onClick={handleUseTdee}>Use This Goal</Button>
                   </AlertTitle>
+                  <AlertDescription>
+                    This is an estimate. You can adjust your daily goal above.
+                  </AlertDescription>
               </Alert>
             )}
           </form>
@@ -204,6 +206,8 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     resolver: zodResolver(profileFormSchema),
     values: profile,
   });
+  
+  const dailyGoalWatcher = form.watch('dailyGoal');
 
   const [macroPercentages, setMacroPercentages] = useState({
     protein: 40,
@@ -211,41 +215,42 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     fat: 20,
   });
 
+  useEffect(() => {
+    const calculateMacros = () => {
+      const dailyGoal = form.getValues('dailyGoal') || 0;
+      
+      const proteinGrams = Math.round((dailyGoal * (macroPercentages.protein / 100)) / 4);
+      const carbsGrams = Math.round((dailyGoal * (macroPercentages.carbs / 100)) / 4);
+      const fatGrams = Math.round((dailyGoal * (macroPercentages.fat / 100)) / 9);
+
+      form.setValue('macroGoal.protein', proteinGrams, { shouldValidate: true });
+      form.setValue('macroGoal.carbs', carbsGrams, { shouldValidate: true });
+      form.setValue('macroGoal.fat', fatGrams, { shouldValidate: true });
+    };
+    calculateMacros();
+  }, [dailyGoalWatcher, macroPercentages, form]);
+
+
   const handlePercentageChange = (macro: 'protein' | 'carbs' | 'fat', value: string) => {
-    const numValue = parseInt(value, 10) || 0;
+    const numValue = parseInt(value, 10);
+    // Allow empty input without setting to NaN
     setMacroPercentages(prev => ({
       ...prev,
-      [macro]: numValue,
+      [macro]: isNaN(numValue) ? 0 : numValue,
     }));
   };
-
-  const calculateMacrosFromPercentages = () => {
+  
+  const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
     const totalPercentage = macroPercentages.protein + macroPercentages.carbs + macroPercentages.fat;
     if (totalPercentage !== 100) {
       toast({
         variant: 'destructive',
         title: 'Invalid Percentages',
-        description: `Macro percentages must add up to 100. Current total: ${totalPercentage}%.`,
+        description: `Macro percentages must add up to 100%. Current total: ${totalPercentage}%.`,
       });
       return;
     }
-
-    const dailyGoal = form.getValues('dailyGoal');
-    const proteinGrams = Math.round((dailyGoal * (macroPercentages.protein / 100)) / 4);
-    const carbsGrams = Math.round((dailyGoal * (macroPercentages.carbs / 100)) / 4);
-    const fatGrams = Math.round((dailyGoal * (macroPercentages.fat / 100)) / 9);
-
-    form.setValue('macroGoal.protein', proteinGrams);
-    form.setValue('macroGoal.carbs', carbsGrams);
-    form.setValue('macroGoal.fat', fatGrams);
-
-    toast({
-        title: 'Macros Calculated',
-        description: `Goals updated: ${proteinGrams}g P, ${carbsGrams}g C, ${fatGrams}g F. Save to confirm.`,
-    });
-  };
-
-  const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
+    
     onUpdateProfile(values);
     toast({
         title: 'Profile Updated',
@@ -258,7 +263,7 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
       <CardHeader>
         <div className="flex items-center gap-3">
             <User className="h-6 w-6" />
-            <CardTitle>Your Profile & Goals</CardTitle>
+            <CardTitle className="font-headline">Your Profile & Goals</CardTitle>
         </div>
         <CardDescription>Update your personal info and nutrition targets.</CardDescription>
       </CardHeader>
@@ -311,7 +316,7 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
             <div>
                  <FormLabel className="flex items-center gap-2 mb-2"><PieChart className="h-4 w-4 text-muted-foreground"/> Macro Goals</FormLabel>
                  <div className="p-4 border rounded-md bg-secondary/30 space-y-4">
-                    <p className="text-sm text-muted-foreground">Set macro percentages based on your calorie goal.</p>
+                    <p className="text-sm text-muted-foreground">Set macro percentages to dynamically calculate your goals in grams.</p>
                     <div className="grid grid-cols-3 gap-4">
                         <FormItem>
                             <FormLabel className="text-xs">Protein (%)</FormLabel>
@@ -332,13 +337,11 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
                             </FormControl>
                         </FormItem>
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={calculateMacrosFromPercentages}>
-                        <RefreshCw className="mr-2 h-4 w-4" /> Calculate Macros (grams)
-                    </Button>
+                   
                     <div className="grid grid-cols-3 gap-4 pt-2">
-                        <FormField control={form.control} name="macroGoal.protein" render={({ field }) => (<FormItem><FormLabel className="text-xs">Protein (g)</FormLabel><FormControl><Input readOnly type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="macroGoal.carbs" render={({ field }) => (<FormItem><FormLabel className="text-xs">Carbs (g)</FormLabel><FormControl><Input readOnly type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="macroGoal.fat" render={({ field }) => (<FormItem><FormLabel className="text-xs">Fat (g)</FormLabel><FormControl><Input readOnly type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="macroGoal.protein" render={({ field }) => (<FormItem><FormLabel className="text-xs">Protein (g)</FormLabel><FormControl><Input readOnly type="number" {...field} className="bg-background/50"/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="macroGoal.carbs" render={({ field }) => (<FormItem><FormLabel className="text-xs">Carbs (g)</FormLabel><FormControl><Input readOnly type="number" {...field} className="bg-background/50"/></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="macroGoal.fat" render={({ field }) => (<FormItem><FormLabel className="text-xs">Fat (g)</FormLabel><FormControl><Input readOnly type="number" {...field} className="bg-background/50"/></FormControl><FormMessage /></FormItem>)} />
                     </div>
                  </div>
             </div>
@@ -346,7 +349,7 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
             <Button type="submit" className="w-full">Save Changes</Button>
           </form>
         </Form>
-        <TDEECalculator onTdeeCalculated={(tdee) => form.setValue('dailyGoal', tdee)} />
+        <TDEECalculator onTdeeCalculated={(tdee) => form.setValue('dailyGoal', tdee, { shouldValidate: true })} />
       </CardContent>
     </Card>
   );
