@@ -2,11 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { FoodItem, UserProfile } from '@/lib/types';
+import type { FoodItem, UserProfile, MealType } from '@/lib/types';
 import { CalorieSummary } from '@/components/calorie-summary';
 import { FoodLog } from '@/components/food-log';
 import { AddFoodDialog } from '@/components/add-food-dialog';
 import { UserProfileSection } from '@/components/user-profile-section';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const initialItems: FoodItem[] = [
   { id: '1', name: 'Coffee', weight: 250, calories: 5, protein: 0, carbs: 1, fat: 0, mealType: 'Breakfast' },
@@ -28,6 +30,9 @@ const initialProfile: UserProfile = {
 export default function DashboardClient() {
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(initialProfile);
+  const [isAddFoodDialogOpen, setIsAddFoodDialogOpen] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState<MealType | undefined>(undefined);
+
 
   useEffect(() => {
     // This effect runs once on the client after hydration,
@@ -60,6 +65,11 @@ export default function DashboardClient() {
   useEffect(() => {
     localStorage.setItem('userProfile', JSON.stringify(userProfile));
   }, [userProfile]);
+  
+  const openAddFoodDialog = (mealType?: MealType) => {
+    setSelectedMealType(mealType);
+    setIsAddFoodDialogOpen(true);
+  };
 
   const handleAddFood = (newFoods: Omit<FoodItem, 'id'>[]) => {
     const foodsWithIds = newFoods.map(food => ({
@@ -81,14 +91,25 @@ export default function DashboardClient() {
     <div className="container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <CalorieSummary items={foodItems} userProfile={userProfile} />
-        <FoodLog items={foodItems} onDeleteItem={handleDeleteItem} />
+        <FoodLog 
+            items={foodItems} 
+            onDeleteItem={handleDeleteItem} 
+            onAddFood={openAddFoodDialog}
+        />
       </div>
       <div className="lg:col-span-1">
         <UserProfileSection profile={userProfile} onUpdateProfile={handleUpdateProfile}/>
       </div>
-      <AddFoodDialog onAddFood={handleAddFood} />
+       <AddFoodDialog 
+            onAddFood={handleAddFood} 
+            isOpen={isAddFoodDialogOpen}
+            setIsOpen={setIsAddFoodDialogOpen}
+            defaultMealType={selectedMealType}
+      />
+      <Button size="lg" className="fixed bottom-6 right-6 rounded-full shadow-lg h-16 w-16 p-0 md:h-14 md:w-auto md:px-6 bg-gradient-to-br from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" onClick={() => openAddFoodDialog()}>
+          <Plus className="h-7 w-7 md:mr-2" />
+          <span className="hidden md:inline">Add Food</span>
+      </Button>
     </div>
   );
 }
-
-    

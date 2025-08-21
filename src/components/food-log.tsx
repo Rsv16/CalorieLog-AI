@@ -1,63 +1,82 @@
+
 import type { FoodItem, MealType } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Plus, Trash2 } from 'lucide-react';
+import { Separator } from './ui/separator';
 
 interface FoodLogProps {
   items: FoodItem[];
   onDeleteItem: (id: string) => void;
+  onAddFood: (mealType: MealType) => void;
 }
 
-const MealSection = ({ mealType, items, onDeleteItem }: { mealType: MealType, items: FoodItem[], onDeleteItem: (id: string) => void }) => {
-  if (items.length === 0) return null;
-
+const MealSection = ({ 
+    mealType, 
+    items, 
+    onDeleteItem, 
+    onAddFood 
+}: { 
+    mealType: MealType, 
+    items: FoodItem[], 
+    onDeleteItem: (id: string) => void,
+    onAddFood: (mealType: MealType) => void
+}) => {
   const totalCalories = items.reduce((sum, item) => sum + item.calories, 0);
 
   return (
-    <AccordionItem value={mealType}>
-      <AccordionTrigger className="text-lg font-semibold px-2">
-        <div className="flex justify-between w-full">
-          <span>{mealType}</span>
-          <span className="text-primary pr-2">{totalCalories} kcal</span>
+    <div className="py-4">
+        <div className="flex justify-between items-center mb-4">
+            <div>
+                <h3 className="text-xl font-bold font-headline tracking-tight">{mealType}</h3>
+                <p className="text-muted-foreground">{totalCalories} kcal</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => onAddFood(mealType)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Food
+            </Button>
         </div>
-      </AccordionTrigger>
-      <AccordionContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Food</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
-              <TableHead className="text-right">Macros (P/C/F)</TableHead>
-              <TableHead className="text-right">Calories</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="text-right">{item.weight}g</TableCell>
-                <TableCell className="text-right">{`${item.protein}g / ${item.carbs}g / ${item.fat}g`}</TableCell>
-                <TableCell className="text-right">{item.calories}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label={`Delete ${item.name}`}>
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete item</span>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </AccordionContent>
-    </AccordionItem>
+        
+        {items.length > 0 ? (
+             <Table>
+             <TableHeader>
+               <TableRow>
+                 <TableHead>Food</TableHead>
+                 <TableHead className="text-right">Weight</TableHead>
+                 <TableHead className="text-right hidden sm:table-cell">Macros (P/C/F)</TableHead>
+                 <TableHead className="text-right">Calories</TableHead>
+                 <TableHead className="w-[50px]"></TableHead>
+               </TableRow>
+             </TableHeader>
+             <TableBody>
+               {items.map(item => (
+                 <TableRow key={item.id}>
+                   <TableCell className="font-medium">{item.name}</TableCell>
+                   <TableCell className="text-right">{item.weight}g</TableCell>
+                   <TableCell className="text-right hidden sm:table-cell">{`${item.protein}g / ${item.carbs}g / ${item.fat}g`}</TableCell>
+                   <TableCell className="text-right font-semibold">{item.calories}</TableCell>
+                   <TableCell>
+                     <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label={`Delete ${item.name}`}>
+                       <Trash2 className="h-4 w-4" />
+                       <span className="sr-only">Delete item</span>
+                     </Button>
+                   </TableCell>
+                 </TableRow>
+               ))}
+             </TableBody>
+           </Table>
+        ) : (
+            <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                No {mealType.toLowerCase()} items logged yet.
+            </div>
+        )}
+       
+    </div>
   );
 };
 
-export function FoodLog({ items, onDeleteItem }: FoodLogProps) {
+export function FoodLog({ items, onDeleteItem, onAddFood }: FoodLogProps) {
   const mealItems: Record<MealType, FoodItem[]> = {
     Breakfast: items.filter(i => i.mealType === 'Breakfast'),
     Lunch: items.filter(i => i.mealType === 'Lunch'),
@@ -66,25 +85,16 @@ export function FoodLog({ items, onDeleteItem }: FoodLogProps) {
   };
 
   return (
-    <Card className="shadow-md">
+    <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle>Today's Log</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Today's Log</CardTitle>
+        <CardDescription>A detailed log of your meals and snacks for the day.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px] pr-4">
-            {items.length > 0 ? (
-                <Accordion type="multiple" defaultValue={['Breakfast', 'Lunch', 'Dinner', 'Snacks']} className="w-full">
-                    <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} />
-                    <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} />
-                    <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} />
-                    <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} />
-                </Accordion>
-            ) : (
-                <div className="h-24 flex items-center justify-center text-center text-muted-foreground">
-                    No food logged yet.
-                </div>
-            )}
-        </ScrollArea>
+      <CardContent className="divide-y divide-border">
+          <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+          <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+          <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
+          <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />
       </CardContent>
     </Card>
   );

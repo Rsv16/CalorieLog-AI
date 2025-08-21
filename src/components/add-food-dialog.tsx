@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -26,23 +26,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 interface AddFoodDialogProps {
   onAddFood: (food: Omit<FoodItem, 'id'>[]) => void;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+  defaultMealType?: MealType;
 }
 
 const manualFormSchema = z.object({
+  mealType: z.enum(['Breakfast', 'Lunch', 'Dinner', 'Snacks'], { required_error: 'Please select a meal.' }),
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   weight: z.coerce.number().positive('Weight must be positive.'),
   calories: z.coerce.number().positive('Calories must be positive.'),
   protein: z.coerce.number().min(0, 'Protein cannot be negative.'),
   carbs: z.coerce.number().min(0, 'Carbs cannot be negative.'),
   fat: z.coerce.number().min(0, 'Fat cannot be negative.'),
-  mealType: z.enum(['Breakfast', 'Lunch', 'Dinner', 'Snacks']),
 });
 
-function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void }) {
+function ManualFoodForm({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; }) {
   const form = useForm<z.infer<typeof manualFormSchema>>({
     resolver: zodResolver(manualFormSchema),
-    defaultValues: { name: '', weight: 0, calories: 0, protein: 0, carbs: 0, fat: 0, mealType: 'Breakfast' },
+    defaultValues: { name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined, mealType: defaultMealType },
   });
+  
+  useEffect(() => {
+    form.reset({ mealType: defaultMealType, name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined });
+  }, [defaultMealType, form]);
 
   function onSubmit(values: z.infer<typeof manualFormSchema>) {
     onAddFood([values]);
@@ -53,19 +60,6 @@ function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodIte
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Food Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Apple" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <FormField
           control={form.control}
           name="mealType"
@@ -85,6 +79,19 @@ function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodIte
                   <SelectItem value="Snacks">Snacks</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Food Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Apple" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -166,11 +173,17 @@ function ManualFoodForm({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodIte
   );
 }
 
-function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void }) {
+function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number } | null>(null);
-  const [mealType, setMealType] = useState<MealType>('Breakfast');
+  const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Breakfast');
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (defaultMealType) {
+      setMealType(defaultMealType);
+    }
+  }, [defaultMealType]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -288,18 +301,9 @@ function CameraEstimation({ onAddFood, setOpen }: { onAddFood: (food: Omit<FoodI
   );
 }
 
-
-export function AddFoodDialog({ onAddFood }: AddFoodDialogProps) {
-  const [open, setOpen] = useState(false);
-
+export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="lg" className="fixed bottom-6 right-6 rounded-full shadow-lg h-16 w-16 p-0 md:h-14 md:w-auto md:px-6 bg-gradient-to-br from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity">
-          <Plus className="h-7 w-7 md:mr-2" />
-          <span className="hidden md:inline">Add Food</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
@@ -316,10 +320,10 @@ export function AddFoodDialog({ onAddFood }: AddFoodDialogProps) {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="manual" className="pt-4">
-            <ManualFoodForm onAddFood={onAddFood} setOpen={setOpen} />
+            <ManualFoodForm onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
           </TabsContent>
           <TabsContent value="camera" className="pt-4">
-            <CameraEstimation onAddFood={onAddFood} setOpen={setOpen} />
+            <CameraEstimation onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
           </TabsContent>
         </Tabs>
       </DialogContent>
