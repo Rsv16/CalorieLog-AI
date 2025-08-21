@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,10 +21,11 @@ import type { FoodItem, EstimatedFoodItem, MealType } from '@/lib/types';
 import { estimateAndAugmentFood, searchFoodDatabase } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { SearchFoodOutput } from '@/ai/flows/search-food-flow';
 import { Skeleton } from './ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface AddFoodDialogProps {
   onAddFood: (food: Omit<FoodItem, 'id'>[]) => void;
@@ -176,9 +178,30 @@ function ManualFoodForm({ onAddFood, setOpen, defaultMealType }: { onAddFood: (f
 
 function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [results, setResults] = useState<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number } | null>(null);
   const [mealType, setMealType] = useState<MealType>(defaultMealType || 'Breakfast');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+      }
+    };
+
+    getCameraPermission();
+  }, []);
 
   useEffect(() => {
     if (defaultMealType) {
@@ -186,6 +209,53 @@ function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: 
     }
   }, [defaultMealType]);
 
+  const handleCapture = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUri = canvas.toDataURL('image/jpeg');
+      
+      setResults(null);
+      setIsLoading(true);
+      try {
+        const estimationResults = await estimateAndAugmentFood(dataUri);
+        setResults(estimationResults);
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Estimation Failed',
+          description: 'Could not analyze the image. Please try again.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleAddItems = () => {
+    if (!results) return;
+    const itemsToAdd = results.augmentedFoodItems
+      .filter(item => item.weight && item.calories && item.protein !== undefined && item.carbs !== undefined && item.fat !== undefined)
+      .map(item => ({
+        name: item.foodItem,
+        weight: item.weight!,
+        calories: item.calories!,
+        protein: item.protein!,
+        carbs: item.carbs!,
+        fat: item.fat!,
+        mealType: mealType,
+      }));
+    onAddFood(itemsToAdd);
+    setResults(null);
+    setOpen(false);
+  };
+  
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -211,30 +281,35 @@ function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: 
     reader.readAsDataURL(file);
   };
 
-  const handleAddItems = () => {
-    if (!results) return;
-    const itemsToAdd = results.augmentedFoodItems
-      .filter(item => item.weight && item.calories && item.protein !== undefined && item.carbs !== undefined && item.fat !== undefined)
-      .map(item => ({
-        name: item.foodItem,
-        weight: item.weight!,
-        calories: item.calories!,
-        protein: item.protein!,
-        carbs: item.carbs!,
-        fat: item.fat!,
-        mealType: mealType,
-      }));
-    onAddFood(itemsToAdd);
-    setResults(null);
-    setOpen(false);
-  };
-
   return (
     <div className="space-y-4">
+        {!results && !isLoading && (
+            <div className='relative'>
+                <video ref={videoRef} className="w-full aspect-video rounded-md bg-secondary" autoPlay muted playsInline />
+                <canvas ref={canvasRef} className="hidden" />
+
+                {hasCameraPermission === false && (
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <Alert variant="destructive">
+                            <AlertTitle>Camera Access Denied</AlertTitle>
+                            <AlertDescription>
+                                Please enable camera permissions to use this feature. You can still upload a photo.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                )}
+                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                    <Button onClick={handleCapture} disabled={!hasCameraPermission || isLoading} size="lg" className="rounded-full h-16 w-16 p-0 shadow-lg">
+                        <Camera className="h-7 w-7" />
+                    </Button>
+                </div>
+            </div>
+        )}
+
       <Input id="picture" type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isLoading} />
       <Button asChild variant="outline" className="w-full cursor-pointer" disabled={isLoading}>
         <label htmlFor="picture">
-          <Camera className="mr-2 h-4 w-4" /> Select Photo
+          <Camera className="mr-2 h-4 w-4" /> Or Upload a Photo
         </label>
       </Button>
 
@@ -480,7 +555,7 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
           <DialogDescription>
-            Search for a food or add it manually.
+            Search our database, scan with AI, or add manually.
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="search" className="w-full">
