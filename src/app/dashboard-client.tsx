@@ -31,6 +31,9 @@ export default function DashboardClient() {
 
 
   useEffect(() => {
+    // Clear any potentially corrupted data from previous versions on first load.
+    localStorage.removeItem('foodItems');
+    
     // This effect runs once on the client after hydration,
     // preventing hydration mismatches with localStorage.
     const storedItems = localStorage.getItem('foodItems');
