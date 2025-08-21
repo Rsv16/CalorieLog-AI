@@ -36,9 +36,9 @@ const profileFormSchema = z.object({
 });
 
 const tdeeSchema = z.object({
-  weight: z.coerce.number({ required_error: "Weight is required." }).positive(),
-  height: z.coerce.number({ required_error: "Height is required." }).positive(),
-  age: z.coerce.number({ required_error: "Age is required." }).positive(),
+  weight: z.coerce.number({ required_error: "Weight is required." }).positive("Weight must be positive."),
+  height: z.coerce.number({ required_error: "Height is required." }).positive("Height must be positive."),
+  age: z.coerce.number({ required_error: "Age is required." }).positive("Age must be positive."),
   gender: z.enum(['male', 'female'], { required_error: "Gender is required." }),
   activityLevel: z.enum(['sedentary', 'light', 'moderate', 'active', 'veryActive'], { required_error: "Activity level is required." }),
 });
@@ -48,6 +48,11 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const [tdeeResult, setTdeeResult] = useState<number | null>(null);
   const form = useForm<z.infer<typeof tdeeSchema>>({
     resolver: zodResolver(tdeeSchema),
+    defaultValues: {
+        weight: undefined, // Using undefined for placeholders
+        height: undefined,
+        age: undefined,
+    }
   });
 
   const calculateTdee = (data: z.infer<typeof tdeeSchema>) => {
@@ -101,7 +106,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                   <FormItem>
                     <FormLabel>Weight (kg)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="75" {...field} />
+                      <Input type="number" placeholder="e.g., 75" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -114,7 +119,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                   <FormItem>
                     <FormLabel>Height (cm)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="180" {...field} />
+                      <Input type="number" placeholder="e.g., 180" {...field} />
                     </FormControl>
                      <FormMessage />
                   </FormItem>
@@ -127,7 +132,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <FormItem>
                     <FormLabel>Age</FormLabel>
                     <FormControl>
-                        <Input type="number" placeholder="30" {...field} />
+                        <Input type="number" placeholder="e.g., 30" {...field} />
                     </FormControl>
                      <FormMessage />
                     </FormItem>
@@ -165,14 +170,14 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <FormControl>
                         <SelectTrigger>
                         <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
+                        </Trigger>
                     </FormControl>
                     <SelectContent>
-                        <SelectItem value="sedentary">Sedentary</SelectItem>
-                        <SelectItem value="light">Lightly active</SelectItem>
-                        <SelectItem value="moderate">Moderately active</SelectItem>
-                        <SelectItem value="active">Very active</SelectItem>
-                        <SelectItem value="veryActive">Super active</SelectItem>
+                        <SelectItem value="sedentary">Sedentary: little or no exercise</SelectItem>
+                        <SelectItem value="light">Light: exercise 1-3 times/week</SelectItem>
+                        <SelectItem value="moderate">Moderate: exercise 4-5 times/week</SelectItem>
+                        <SelectItem value="active">Active: daily exercise or intense exercise 3-4 times/week</SelectItem>
+                        <SelectItem value="veryActive">Very Active: intense exercise 6-7 times/week</SelectItem>
                     </SelectContent>
                     </Select>
                     <FormMessage />
