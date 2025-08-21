@@ -18,35 +18,38 @@ export function CalorieSummary({ items, userProfile }: CalorieSummaryProps) {
   const progress = userProfile.dailyGoal > 0 ? (totalCalories / userProfile.dailyGoal) * 100 : 0;
 
   return (
-    <Card className="shadow-md">
+    <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle>Today's Summary</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Today's Summary</CardTitle>
         <CardDescription>Your calorie and macro intake for today.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col md:flex-row items-center justify-around gap-6">
         <div className="relative">
-          <CircularProgress value={progress} className="w-32 h-32" />
+          <CircularProgress value={progress} className="w-36 h-36" />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold font-headline">{totalCalories}</span>
-            <span className="text-sm text-muted-foreground">kcal</span>
+            <span className="text-4xl font-bold tracking-tighter">{totalCalories}</span>
+            <span className="text-sm text-muted-foreground -mt-1">kcal</span>
           </div>
         </div>
-        <div className="text-center md:text-left space-y-2">
+        <div className="text-center md:text-left space-y-1">
           <p className="text-muted-foreground">Remaining</p>
-          <p className="text-2xl font-semibold text-primary">{Math.max(0, userProfile.dailyGoal - totalCalories)} kcal</p>
+          <p className="text-3xl font-bold tracking-tight text-primary">{Math.max(0, userProfile.dailyGoal - totalCalories)} kcal</p>
         </div>
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-3 gap-4 text-center w-full md:w-auto">
             <div>
-                <p className="text-muted-foreground">Protein</p>
-                <p className="font-semibold">{totalMacros.protein}g / {userProfile.macroGoal.protein}g</p>
+                <p className="text-muted-foreground text-sm">Protein</p>
+                <p className="font-semibold text-lg">{totalMacros.protein}g</p>
+                <p className="text-xs text-muted-foreground">of {userProfile.macroGoal.protein}g</p>
             </div>
              <div>
-                <p className="text-muted-foreground">Carbs</p>
-                <p className="font-semibold">{totalMacros.carbs}g / {userProfile.macroGoal.carbs}g</p>
+                <p className="text-muted-foreground text-sm">Carbs</p>
+                <p className="font-semibold text-lg">{totalMacros.carbs}g</p>
+                <p className="text-xs text-muted-foreground">of {userProfile.macroGoal.carbs}g</p>
             </div>
              <div>
-                <p className="text-muted-foreground">Fat</p>
-                <p className="font-semibold">{totalMacros.fat}g / {userProfile.macroGoal.fat}g</p>
+                <p className="text-muted-foreground text-sm">Fat</p>
+                <p className="font-semibold text-lg">{totalMacros.fat}g</p>
+                 <p className="text-xs text-muted-foreground">of {userProfile.macroGoal.fat}g</p>
             </div>
         </div>
       </CardContent>

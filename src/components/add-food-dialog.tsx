@@ -295,8 +295,8 @@ export function AddFoodDialog({ onAddFood }: AddFoodDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" className="fixed bottom-6 right-6 rounded-full shadow-lg h-14 w-14 p-0 md:w-auto md:px-6">
-          <Plus className="h-6 w-6 md:mr-2" />
+        <Button size="lg" className="fixed bottom-6 right-6 rounded-full shadow-lg h-16 w-16 p-0 md:h-14 md:w-auto md:px-6 bg-gradient-to-br from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity">
+          <Plus className="h-7 w-7 md:mr-2" />
           <span className="hidden md:inline">Add Food</span>
         </Button>
       </DialogTrigger>
@@ -311,7 +311,7 @@ export function AddFoodDialog({ onAddFood }: AddFoodDialogProps) {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="manual">Manual Entry</TabsTrigger>
             <TabsTrigger value="camera">
-              <Sparkles className="mr-2 h-4 w-4 text-accent-foreground/50" />
+              <Sparkles className="mr-2 h-4 w-4 text-purple-400" />
               AI Scan
             </TabsTrigger>
           </TabsList>
