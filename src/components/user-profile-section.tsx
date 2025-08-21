@@ -103,8 +103,6 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const handleUseTdee = () => {
     if (adjustedTdee) {
       onTdeeCalculated(adjustedTdee);
-      setAdjustedTdee(null); 
-      setMaintenanceTdee(null);
     }
   };
 
@@ -305,6 +303,27 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
         description: 'Your goals have been successfully saved.',
     });
   };
+  
+  const handleTdeeCalculated = (tdee: number) => {
+    form.setValue('dailyGoal', tdee, { shouldValidate: true });
+    
+    // Trigger form validation and then submit
+    form.trigger().then(isValid => {
+      if (isValid) {
+        onUpdateProfile(form.getValues());
+         toast({
+            title: 'Goal Updated',
+            description: `Your daily calorie goal is now ${tdee} kcal.`,
+        });
+      } else {
+        toast({
+            variant: 'destructive',
+            title: 'Update Failed',
+            description: 'Please ensure all profile fields are valid before setting a new goal.',
+        });
+      }
+    });
+  };
 
   return (
     <Card className="shadow-md sticky top-6">
@@ -397,10 +416,8 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
             <Button type="submit" className="w-full">Save Changes</Button>
           </form>
         </Form>
-        <TDEECalculator onTdeeCalculated={(tdee) => form.setValue('dailyGoal', tdee, { shouldValidate: true })} />
+        <TDEECalculator onTdeeCalculated={handleTdeeCalculated} />
       </CardContent>
     </Card>
   );
 }
-
-    
