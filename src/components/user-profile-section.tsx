@@ -63,9 +63,9 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const form = useForm<z.infer<typeof tdeeSchema>>({
     resolver: zodResolver(tdeeSchema),
     defaultValues: {
-      weight: undefined,
-      height: undefined,
-      age: undefined,
+      weight: '' as any,
+      height: '' as any,
+      age: '' as any,
     },
   });
 
@@ -402,3 +402,5 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     </Card>
   );
 }
+
+    
