@@ -109,13 +109,12 @@ export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateCha
 
   return (
     <Card className="shadow-lg overflow-hidden">
-       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
+       <CardHeader className="space-y-4">
+          <div className="text-center">
             <CardTitle className="text-2xl font-bold tracking-tight">Daily Log</CardTitle>
             <CardDescription>Your meals and snacks for the selected day.</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <Button variant="outline" size="icon" onClick={() => onDateChange('prev')}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -124,7 +123,6 @@ export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateCha
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
       </CardHeader>
       <CardContent className="divide-y divide-border">
           <AnimatePresence initial={false} custom={animationDirection} mode="wait">
