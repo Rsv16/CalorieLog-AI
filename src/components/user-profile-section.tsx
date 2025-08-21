@@ -49,7 +49,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const form = useForm<z.infer<typeof tdeeSchema>>({
     resolver: zodResolver(tdeeSchema),
     defaultValues: {
-        weight: undefined, // Using undefined for placeholders
+        weight: undefined,
         height: undefined,
         age: undefined,
     }
@@ -221,24 +221,20 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
   });
 
   useEffect(() => {
-    const calculateMacros = () => {
-      const dailyGoal = form.getValues('dailyGoal') || 0;
-      
-      const proteinGrams = Math.round((dailyGoal * (macroPercentages.protein / 100)) / 4);
-      const carbsGrams = Math.round((dailyGoal * (macroPercentages.carbs / 100)) / 4);
-      const fatGrams = Math.round((dailyGoal * (macroPercentages.fat / 100)) / 9);
+    const dailyGoal = form.getValues('dailyGoal') || 0;
+    
+    const proteinGrams = Math.round((dailyGoal * (macroPercentages.protein / 100)) / 4);
+    const carbsGrams = Math.round((dailyGoal * (macroPercentages.carbs / 100)) / 4);
+    const fatGrams = Math.round((dailyGoal * (macroPercentages.fat / 100)) / 9);
 
-      form.setValue('macroGoal.protein', proteinGrams, { shouldValidate: true });
-      form.setValue('macroGoal.carbs', carbsGrams, { shouldValidate: true });
-      form.setValue('macroGoal.fat', fatGrams, { shouldValidate: true });
-    };
-    calculateMacros();
+    form.setValue('macroGoal.protein', proteinGrams, { shouldValidate: true });
+    form.setValue('macroGoal.carbs', carbsGrams, { shouldValidate: true });
+    form.setValue('macroGoal.fat', fatGrams, { shouldValidate: true });
   }, [dailyGoalWatcher, macroPercentages, form]);
 
 
   const handlePercentageChange = (macro: 'protein' | 'carbs' | 'fat', value: string) => {
     const numValue = parseInt(value, 10);
-    // Allow empty input without setting to NaN
     setMacroPercentages(prev => ({
       ...prev,
       [macro]: isNaN(numValue) ? 0 : numValue,
