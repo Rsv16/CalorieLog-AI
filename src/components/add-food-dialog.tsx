@@ -44,7 +44,7 @@ const manualFormSchema = z.object({
   fat: z.coerce.number().min(0, 'Fat cannot be negative.'),
 });
 
-function ManualFoodForm({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; }) {
+function ManualFoodForm({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
   const form = useForm<z.infer<typeof manualFormSchema>>({
     resolver: zodResolver(manualFormSchema),
     defaultValues: { mealType: defaultMealType, name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined },
@@ -583,6 +583,14 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
 export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
   const [activeTab, setActiveTab] = useState('search');
   
+  const [mealType, setMealType] = useState<MealType | undefined>(defaultMealType);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMealType(defaultMealType);
+    }
+  }, [isOpen, defaultMealType]);
+
   useEffect(() => {
       if (!isOpen) {
           // Reset to search tab when dialog is closed
@@ -590,12 +598,19 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
       }
   }, [isOpen]);
   
+  const handleAddFoodWrapper = (food: Omit<FoodItem, 'id'>[]) => {
+    const foodWithMealType = food.map(f => ({ ...f, mealType: f.mealType || mealType || 'Breakfast' }));
+    onAddFood(foodWithMealType);
+  };
+  
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
-           {!defaultMealType && activeTab === 'manual' && <FormMessage>Please select a meal type.</FormMessage>}
+           <DialogDescription>
+            Search our database, scan with AI, or enter manually.
+          </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -610,38 +625,13 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
             <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
            <TabsContent value="search" className="pt-4">
-            {!defaultMealType ? (
-                 <FormField
-                    name="mealType"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Meal</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a meal" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            <SelectItem value="Breakfast">Breakfast</SelectItem>
-                            <SelectItem value="Lunch">Lunch</SelectItem>
-                            <SelectItem value="Dinner">Dinner</SelectItem>
-                            <SelectItem value="Snacks">Snacks</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            ) : (
-                <FoodSearch onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} isOpen={isOpen}/>
-            )}
+            <FoodSearch onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} isOpen={isOpen}/>
            </TabsContent>
           <TabsContent value="camera" className="pt-4">
-            <CameraEstimation onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
+            <CameraEstimation onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
           </TabsContent>
           <TabsContent value="manual" className="pt-4">
-            <ManualFoodForm onAddFood={onAddFood} setOpen={setIsOpen} defaultMealType={defaultMealType} />
+            <ManualFoodForm onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} isOpen={isOpen} />
           </TabsContent>
         </Tabs>
       </DialogContent>
