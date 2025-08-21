@@ -13,6 +13,7 @@ export interface FoodItem extends Macros {
   weight: number; // in grams
   calories: number;
   mealType: MealType;
+  date: string; // YYYY-MM-DD format
 }
 
 export interface UserProfile {

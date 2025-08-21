@@ -68,7 +68,7 @@ const MealSection = ({
            </Table>
         ) : (
             <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                No {mealType.toLowerCase()} items logged yet.
+                No {mealType.toLowerCase()} items logged for this day.
             </div>
         )}
        
@@ -87,8 +87,8 @@ export function FoodLog({ items, onDeleteItem, onAddFood }: FoodLogProps) {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold tracking-tight">Today's Log</CardTitle>
-        <CardDescription>A detailed log of your meals and snacks for the day.</CardDescription>
+        <CardTitle className="text-2xl font-bold tracking-tight">Daily Log</CardTitle>
+        <CardDescription>A detailed log of your meals and snacks for the selected day.</CardDescription>
       </CardHeader>
       <CardContent className="divide-y divide-border">
           <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} />

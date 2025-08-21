@@ -28,7 +28,7 @@ import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface AddFoodDialogProps {
-  onAddFood: (food: Omit<FoodItem, 'id'>[]) => void;
+  onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   defaultMealType?: MealType;
@@ -44,7 +44,7 @@ const manualFormSchema = z.object({
   fat: z.coerce.number().min(0, 'Fat cannot be negative.'),
 });
 
-function ManualFoodForm({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
+function ManualFoodForm({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
   const form = useForm<z.infer<typeof manualFormSchema>>({
     resolver: zodResolver(manualFormSchema),
     defaultValues: { mealType: defaultMealType, name: '', weight: undefined, calories: undefined, protein: undefined, carbs: undefined, fat: undefined },
@@ -178,7 +178,7 @@ function ManualFoodForm({ onAddFood, setOpen, defaultMealType, isOpen }: { onAdd
   );
 }
 
-function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
+function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType }) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [results, setResults] = useState<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number } | null>(null);
@@ -381,7 +381,7 @@ function CameraEstimation({ onAddFood, setOpen, defaultMealType }: { onAddFood: 
 
 type FoodSearchResult = SearchFoodOutput[0];
 
-function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
+function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void; setOpen: (open: boolean) => void; defaultMealType?: MealType; isOpen: boolean; }) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchFoodOutput>([]);
@@ -593,7 +593,7 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
       }
   }, [isOpen]);
   
-  const handleAddFoodWrapper = (food: Omit<FoodItem, 'id'>[]) => {
+  const handleAddFoodWrapper = (food: Omit<FoodItem, 'id' | 'date'>[]) => {
     const foodWithMealType = food.map(f => ({ ...f, mealType: f.mealType || mealType || 'Breakfast' }));
     onAddFood(foodWithMealType);
   };

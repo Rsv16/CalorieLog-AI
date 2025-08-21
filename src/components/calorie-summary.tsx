@@ -10,9 +10,9 @@ interface CalorieSummaryProps {
 export function CalorieSummary({ items, userProfile }: CalorieSummaryProps) {
   const totalCalories = items.reduce((sum, item) => sum + item.calories, 0);
   const totalMacros = items.reduce((totals, item) => ({
-    protein: totals.protein + item.protein,
-    carbs: totals.carbs + item.carbs,
-    fat: totals.fat + item.fat,
+    protein: totals.protein + (item.protein || 0),
+    carbs: totals.carbs + (item.carbs || 0),
+    fat: totals.fat + (item.fat || 0),
   }), { protein: 0, carbs: 0, fat: 0 });
 
   const progress = userProfile.dailyGoal > 0 ? (totalCalories / userProfile.dailyGoal) * 100 : 0;
@@ -20,8 +20,8 @@ export function CalorieSummary({ items, userProfile }: CalorieSummaryProps) {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold tracking-tight">Today's Summary</CardTitle>
-        <CardDescription>Your calorie and macro intake for today.</CardDescription>
+        <CardTitle className="text-2xl font-bold tracking-tight">Summary</CardTitle>
+        <CardDescription>Your calorie and macro intake for this day.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col md:flex-row items-center justify-around gap-6">
         <div className="relative">
