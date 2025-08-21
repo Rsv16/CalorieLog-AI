@@ -49,10 +49,10 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
   const form = useForm<z.infer<typeof tdeeSchema>>({
     resolver: zodResolver(tdeeSchema),
     defaultValues: {
-        weight: undefined,
-        height: undefined,
-        age: undefined,
-    }
+      weight: undefined,
+      height: undefined,
+      age: undefined,
+    },
   });
 
   const calculateTdee = (data: z.infer<typeof tdeeSchema>) => {
@@ -170,7 +170,7 @@ const TDEECalculator = ({ onTdeeCalculated }: { onTdeeCalculated: (tdee: number)
                     <FormControl>
                         <SelectTrigger>
                         <SelectValue placeholder="Select..." />
-                        </Trigger>
+                        </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                         <SelectItem value="sedentary">Sedentary: little or no exercise</SelectItem>
@@ -235,9 +235,10 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
 
   const handlePercentageChange = (macro: 'protein' | 'carbs' | 'fat', value: string) => {
     const numValue = parseInt(value, 10);
+    if (isNaN(numValue)) return;
     setMacroPercentages(prev => ({
       ...prev,
-      [macro]: isNaN(numValue) ? 0 : numValue,
+      [macro]: numValue,
     }));
   };
   
