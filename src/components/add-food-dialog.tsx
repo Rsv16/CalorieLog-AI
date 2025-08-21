@@ -388,6 +388,9 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
   const [servingUnit, setServingUnit] = useState<string>('g');
   const [servingSize, setServingSize] = useState<number>(100);
   const { toast } = useToast();
+  
+  // Dummy form for context provider
+  const form = useForm();
 
   useEffect(() => {
     if (defaultMealType) {
@@ -459,6 +462,7 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
                     <CardDescription>{selectedFood.brand || 'Generic'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <Form {...form}>
                      <div className="grid grid-cols-2 gap-4">
                         <FormItem>
                             <FormLabel>Serving Size</FormLabel>
@@ -476,6 +480,7 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType }: { onAddFood: (food:
                             </Select>
                         </FormItem>
                      </div>
+                    </Form>
                     <div className="p-4 rounded-md bg-secondary/50 text-center space-y-2">
                         <p className="text-3xl font-bold text-primary">{calculatedMacros.calories} kcal</p>
                         <div className="flex justify-around text-sm">
