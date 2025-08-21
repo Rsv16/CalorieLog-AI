@@ -14,6 +14,11 @@ export interface FoodItem extends Macros {
   calories: number;
   mealType: MealType;
   date: string; // YYYY-MM-DD format
+  // Base macros per 100g for recalculation
+  baseCalories: number;
+  baseProtein: number;
+  baseCarbs: number;
+  baseFat: number;
 }
 
 export type WeeklyGoal = 'lose1' | 'lose0.75' | 'lose0.5' | 'maintain' | 'gain0.5' | 'gain0.75' | 'gain1';

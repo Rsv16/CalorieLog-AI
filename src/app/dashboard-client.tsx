@@ -6,6 +6,7 @@ import type { FoodItem, UserProfile, MealType } from '@/lib/types';
 import { CalorieSummary } from '@/components/calorie-summary';
 import { FoodLog } from '@/components/food-log';
 import { AddFoodDialog } from '@/components/add-food-dialog';
+import { EditFoodDialog } from '@/components/edit-food-dialog';
 import { UserProfileSection } from '@/components/user-profile-section';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -31,6 +32,8 @@ export default function DashboardClient() {
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>(initialProfile);
   const [isAddFoodDialogOpen, setIsAddFoodDialogOpen] = useState(false);
+  const [isEditFoodDialogOpen, setIsEditFoodDialogOpen] = useState(false);
+  const [editingFoodItem, setEditingFoodItem] = useState<FoodItem | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType | undefined>(undefined);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [animationDirection, setAnimationDirection] = useState<'left' | 'right'>('right');
@@ -73,19 +76,38 @@ export default function DashboardClient() {
     setSelectedMealType(mealType);
     setIsAddFoodDialogOpen(true);
   };
+  
+  const openEditFoodDialog = (item: FoodItem) => {
+    setEditingFoodItem(item);
+    setIsEditFoodDialogOpen(true);
+  };
 
   const handleAddFood = (newFoods: Omit<FoodItem, 'id' | 'date'>[]) => {
     const formattedDate = getFormattedDate(currentDate);
-    const foodsWithIdsAndDate = newFoods.map(food => ({
+    const foodsWithIdsAndDate = newFoods.map(food => {
+      const ratio = food.weight / 100;
+      const baseValues = {
+        baseCalories: food.baseCalories || food.calories / ratio,
+        baseProtein: food.baseProtein || food.protein / ratio,
+        baseCarbs: food.baseCarbs || food.carbs / ratio,
+        baseFat: food.baseFat || food.fat / ratio,
+      }
+      return {
         ...food,
+        ...baseValues,
         id: new Date().toISOString() + Math.random(),
         date: formattedDate,
-    }));
+      }
+    });
     setFoodItems(prevItems => [...prevItems, ...foodsWithIdsAndDate]);
   };
 
   const handleDeleteItem = (id: string) => {
     setFoodItems(prevItems => prevItems.filter(item => item.id !== id));
+  };
+  
+  const handleUpdateFood = (updatedFood: FoodItem) => {
+    setFoodItems(prevItems => prevItems.map(item => item.id === updatedFood.id ? updatedFood : item));
   };
   
   const handleUpdateProfile = (updatedProfile: UserProfile) => {
@@ -114,6 +136,7 @@ export default function DashboardClient() {
             items={itemsForSelectedDate} 
             onDeleteItem={handleDeleteItem} 
             onAddFood={openAddFoodDialog}
+            onEditItem={openEditFoodDialog}
             currentDate={currentDate}
             onDateChange={handleDateChange}
             animationDirection={animationDirection}
@@ -128,6 +151,14 @@ export default function DashboardClient() {
             setIsOpen={setIsAddFoodDialogOpen}
             defaultMealType={selectedMealType}
       />
+      {editingFoodItem && (
+         <EditFoodDialog
+            isOpen={isEditFoodDialogOpen}
+            setIsOpen={setIsEditFoodDialogOpen}
+            foodItem={editingFoodItem}
+            onUpdateFood={handleUpdateFood}
+        />
+      )}
       <Button size="lg" className="fixed bottom-6 right-6 rounded-full shadow-lg h-16 w-16 p-0 md:h-14 md:w-auto md:px-6 bg-gradient-to-br from-primary to-accent text-primary-foreground hover:opacity-90 transition-opacity" onClick={() => openAddFoodDialog()}>
           <Plus className="h-7 w-7 md:mr-2" />
           <span className="hidden md:inline">Add Food</span>

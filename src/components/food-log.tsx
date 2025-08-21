@@ -13,6 +13,7 @@ interface FoodLogProps {
   items: FoodItem[];
   onDeleteItem: (id: string) => void;
   onAddFood: (mealType: MealType) => void;
+  onEditItem: (item: FoodItem) => void;
   currentDate: Date;
   onDateChange: (direction: 'next' | 'prev') => void;
   animationDirection: 'left' | 'right';
@@ -23,6 +24,7 @@ const MealSection = ({
     items, 
     onDeleteItem, 
     onAddFood,
+    onEditItem,
     onToggleFavorite,
     favorites,
 }: { 
@@ -30,6 +32,7 @@ const MealSection = ({
     items: FoodItem[], 
     onDeleteItem: (id: string) => void,
     onAddFood: (mealType: MealType) => void,
+    onEditItem: (item: FoodItem) => void,
     onToggleFavorite: (item: FoodItem) => void,
     favorites: string[],
 }) => {
@@ -61,17 +64,17 @@ const MealSection = ({
              </TableHeader>
              <TableBody>
                {items.map(item => (
-                 <TableRow key={item.id}>
+                 <TableRow key={item.id} onClick={() => onEditItem(item)} className="cursor-pointer">
                    <TableCell className="font-medium">{item.name}</TableCell>
                    <TableCell className="text-right">{item.weight}g</TableCell>
                    <TableCell className="text-right hidden sm:table-cell">{`${item.protein}g / ${item.carbs}g / ${item.fat}g`}</TableCell>
                    <TableCell className="text-right font-semibold">{item.calories}</TableCell>
                    <TableCell className="flex justify-end gap-1">
-                     <Button variant="ghost" size="icon" onClick={() => onToggleFavorite(item)} aria-label={`Favorite ${item.name}`}>
+                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onToggleFavorite(item); }} aria-label={`Favorite ${item.name}`}>
                        <Heart className={`h-4 w-4 ${favorites.includes(item.name) ? 'text-red-500 fill-current' : ''}`} />
                        <span className="sr-only">Favorite item</span>
                      </Button>
-                     <Button variant="ghost" size="icon" onClick={() => onDeleteItem(item.id)} aria-label={`Delete ${item.name}`}>
+                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }} aria-label={`Delete ${item.name}`}>
                        <Trash2 className="h-4 w-4" />
                        <span className="sr-only">Delete item</span>
                      </Button>
@@ -90,7 +93,7 @@ const MealSection = ({
   );
 };
 
-export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateChange, animationDirection }: FoodLogProps) {
+export function FoodLog({ items, onDeleteItem, onAddFood, onEditItem, currentDate, onDateChange, animationDirection }: FoodLogProps) {
   const { toast } = useToast();
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -177,10 +180,10 @@ export function FoodLog({ items, onDeleteItem, onAddFood, currentDate, onDateCha
                 exit="exit"
                 transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
               >
-              <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
-              <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
-              <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
-              <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Breakfast" items={mealItems.Breakfast} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onEditItem={onEditItem} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Lunch" items={mealItems.Lunch} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onEditItem={onEditItem} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Dinner" items={mealItems.Dinner} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onEditItem={onEditItem} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
+              <MealSection mealType="Snacks" items={mealItems.Snacks} onDeleteItem={onDeleteItem} onAddFood={onAddFood} onEditItem={onEditItem} onToggleFavorite={handleToggleFavorite} favorites={favorites} />
             </motion.div>
           </AnimatePresence>
       </CardContent>
