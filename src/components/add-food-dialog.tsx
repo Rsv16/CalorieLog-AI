@@ -16,16 +16,18 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils } from 'lucide-react';
+import { Camera, Plus, Loader2, Sparkles, Wand2, Search, Utensils, ChefHat, Check } from 'lucide-react';
 import type { FoodItem, EstimatedFoodItem, MealType } from '@/lib/types';
-import { estimateAndAugmentFood, searchFoodDatabase } from '@/app/actions';
+import { estimateAndAugmentFood, searchFoodDatabase, reimagineRecipeWithAI } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { SearchFoodOutput } from '@/ai/flows/search-food-flow';
+import type { ReimagineRecipeOutput } from '@/ai/flows/reimagine-recipe-flow';
 import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Textarea } from './ui/textarea';
 
 interface AddFoodDialogProps {
   onAddFood: (food: Omit<FoodItem, 'id' | 'date'>[]) => void;
@@ -575,6 +577,161 @@ function FoodSearch({ onAddFood, setOpen, defaultMealType, isOpen }: { onAddFood
   );
 }
 
+const recipeFormSchema = z.object({
+  ingredients: z.string().min(10, "Please provide a list of ingredients."),
+  instructions: z.string().min(10, "Please provide the instructions."),
+  goal: z.enum(['lower-calorie', 'higher-protein', 'lower-fat', 'lower-carb', 'vegan', 'vegetarian']),
+});
+
+function RecipeReimaginer() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const [result, setResult] = useState<ReimagineRecipeOutput | null>(null);
+
+    const form = useForm<z.infer<typeof recipeFormSchema>>({
+        resolver: zodResolver(recipeFormSchema),
+        defaultValues: {
+            ingredients: '',
+            instructions: '',
+            goal: 'lower-calorie',
+        }
+    });
+    
+    async function onSubmit(values: z.infer<typeof recipeFormSchema>) {
+        setIsLoading(true);
+        setResult(null);
+        try {
+            const response = await reimagineRecipeWithAI(values);
+            setResult(response);
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Failed to Reimagine Recipe',
+                description: 'The AI could not process your request. Please try again.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const NutritionCard = ({ title, nutrition }: { title: string, nutrition: ReimagineRecipeOutput['originalNutrition']}) => (
+        <Card className="flex-1">
+            <CardHeader>
+                <CardTitle className="text-lg">{title}</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+                <p className="text-3xl font-bold text-primary">{nutrition.calories} <span className="text-lg font-normal text-muted-foreground">kcal</span></p>
+                <div className="flex justify-around text-sm mt-2 text-muted-foreground">
+                    <span>P: {nutrition.protein}g</span>
+                    <span>C: {nutrition.carbs}g</span>
+                    <span>F: {nutrition.fat}g</span>
+                </div>
+            </CardContent>
+        </Card>
+    );
+
+    return (
+        <ScrollArea className="h-96">
+            <div className="space-y-4 pr-4">
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                         <FormField
+                            control={form.control}
+                            name="ingredients"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Ingredients</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="e.g.,&#10;1 cup all-purpose flour&#10;1/2 cup sugar&#10;2 large eggs" {...field} className="h-28"/>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="instructions"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Instructions</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="e.g.,&#10;1. Preheat oven to 350°F (175°C).&#10;2. Mix dry ingredients in a large bowl." {...field} className="h-28"/>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="goal"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>My Goal Is To Make It...</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="lower-calorie">Lower Calorie</SelectItem>
+                                            <SelectItem value="higher-protein">Higher Protein</SelectItem>
+                                            <SelectItem value="lower-fat">Lower Fat</SelectItem>
+                                            <SelectItem value="lower-carb">Lower Carb</SelectItem>
+                                            <SelectItem value="vegan">Vegan</SelectItem>
+                                            <SelectItem value="vegetarian">Vegetarian</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reimagining...</> : <><Sparkles className="mr-2 h-4 w-4" /> Reimagine with AI</>}
+                        </Button>
+                    </form>
+                </Form>
+                
+                {isLoading && (
+                    <div className="space-y-4 pt-4">
+                        <Skeleton className="h-24 w-full" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
+                )}
+
+                {result && (
+                    <div className="space-y-4 pt-4">
+                        <div className="flex gap-4">
+                            <NutritionCard title="Original" nutrition={result.originalNutrition} />
+                            <NutritionCard title="Reimagined" nutrition={result.reimaginedNutrition} />
+                        </div>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>{result.reimaginedRecipe.title}</CardTitle>
+                                <CardDescription>{result.reimaginedRecipe.description}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <h4 className="font-semibold mb-2">New Ingredients:</h4>
+                                    <ul className="list-disc list-inside text-sm space-y-1">
+                                        {result.reimaginedRecipe.ingredients.map((ing, i) => <li key={i}>{ing}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold mb-2">New Instructions:</h4>
+                                     <ol className="list-decimal list-inside text-sm space-y-2">
+                                        {result.reimaginedRecipe.instructions.map((step, i) => <li key={i}>{step}</li>)}
+                                    </ol>
+                                </div>
+                                <Alert>
+                                    <Wand2 className="h-4 w-4"/>
+                                    <AlertTitle>Nutrition Analysis</AlertTitle>
+                                    <AlertDescription>{result.reimaginedRecipe.nutritionAnalysis}</AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        </ScrollArea>
+    );
+}
+
 export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }: AddFoodDialogProps) {
   const [activeTab, setActiveTab] = useState('search');
   
@@ -600,7 +757,7 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
   
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Log a New Meal</DialogTitle>
            <DialogDescription>
@@ -608,7 +765,7 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
           </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="search">
               <Search className="mr-2 h-4 w-4" />
               Search
@@ -617,6 +774,10 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
               <Sparkles className="mr-2 h-4 w-4 text-purple-400" />
               AI Scan
             </TabsTrigger>
+             <TabsTrigger value="recipe">
+              <ChefHat className="mr-2 h-4 w-4" />
+              Recipe AI
+            </TabsTrigger>
             <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
            <TabsContent value="search" className="pt-4">
@@ -624,6 +785,9 @@ export function AddFoodDialog({ onAddFood, isOpen, setIsOpen, defaultMealType }:
            </TabsContent>
           <TabsContent value="camera" className="pt-4">
             <CameraEstimation onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} />
+          </TabsContent>
+           <TabsContent value="recipe" className="pt-4">
+            <RecipeReimaginer />
           </TabsContent>
           <TabsContent value="manual" className="pt-4">
             <ManualFoodForm onAddFood={handleAddFoodWrapper} setOpen={setIsOpen} defaultMealType={mealType} isOpen={isOpen} />

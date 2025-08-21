@@ -3,9 +3,11 @@
 import { augmentFoodDetails } from '@/ai/flows/augment-food-details';
 import { estimateCaloriesFromImage } from '@/ai/flows/estimate-calories-from-image';
 import { searchFood } from '@/ai/flows/search-food-flow';
+import { reimagineRecipe } from '@/ai/flows/reimagine-recipe-flow';
 import type { AugmentFoodDetailsInput } from '@/ai/flows/augment-food-details';
 import type { EstimatedFoodItem } from '@/lib/types';
 import type { SearchFoodOutput } from '@/ai/flows/search-food-flow';
+import type { ReimagineRecipeInput, ReimagineRecipeOutput } from '@/ai/flows/reimagine-recipe-flow';
 
 
 export async function estimateAndAugmentFood(photoDataUri: string): Promise<{ augmentedFoodItems: EstimatedFoodItem[], totalCalories: number }> {
@@ -50,4 +52,14 @@ export async function searchFoodDatabase(query: string): Promise<SearchFoodOutpu
     console.error('Error searching food database:', error);
     throw new Error('Failed to search for food.');
   }
+}
+
+export async function reimagineRecipeWithAI(input: ReimagineRecipeInput): Promise<ReimagineRecipeOutput> {
+    try {
+        const result = await reimagineRecipe(input);
+        return result;
+    } catch (error) {
+        console.error('Error reimagining recipe:', error);
+        throw new Error('Failed to reimagine the recipe.');
+    }
 }
