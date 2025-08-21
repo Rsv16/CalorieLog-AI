@@ -356,3 +356,5 @@ export function UserProfileSection({ profile, onUpdateProfile }: UserProfileSect
     </Card>
   );
 }
+
+    
