@@ -35,11 +35,14 @@ export default function DashboardClient() {
   const [isEditFoodDialogOpen, setIsEditFoodDialogOpen] = useState(false);
   const [editingFoodItem, setEditingFoodItem] = useState<FoodItem | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<MealType | undefined>(undefined);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [animationDirection, setAnimationDirection] = useState<'left' | 'right'>('right');
 
 
   useEffect(() => {
+    // Set current date on client side to avoid hydration mismatch
+    setCurrentDate(new Date());
+
     const storedItems = localStorage.getItem('foodItems');
     if (storedItems) {
         try {
@@ -65,7 +68,10 @@ export default function DashboardClient() {
   }, []);
   
   useEffect(() => {
-    localStorage.setItem('foodItems', JSON.stringify(foodItems));
+    // Avoid writing to localStorage on initial render before foodItems is populated from it
+    if (foodItems.length > 0) {
+      localStorage.setItem('foodItems', JSON.stringify(foodItems));
+    }
   }, [foodItems]);
 
   useEffect(() => {
@@ -83,6 +89,7 @@ export default function DashboardClient() {
   };
 
   const handleAddFood = (newFoods: Omit<FoodItem, 'id' | 'date'>[]) => {
+    if (!currentDate) return;
     const formattedDate = getFormattedDate(currentDate);
     const foodsWithIdsAndDate = newFoods.map(food => {
       const ratio = food.weight / 100;
@@ -115,6 +122,7 @@ export default function DashboardClient() {
   };
 
   const handleDateChange = (direction: 'next' | 'prev') => {
+    if (!currentDate) return;
     setAnimationDirection(direction === 'next' ? 'right' : 'left');
     if (direction === 'next') {
       setCurrentDate(addDays(currentDate, 1));
@@ -124,9 +132,15 @@ export default function DashboardClient() {
   };
 
   const itemsForSelectedDate = useMemo(() => {
+    if (!currentDate) return [];
     const formattedDate = getFormattedDate(currentDate);
     return foodItems.filter(item => item.date === formattedDate);
   }, [foodItems, currentDate]);
+
+  if (!currentDate) {
+    // Render a loading state or null until the date is set on the client
+    return null; 
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
