@@ -12,7 +12,7 @@ const ptSans = PT_Sans({
 
 
 export const metadata: Metadata = {
-  title: 'CalorieCam',
+  title: 'CalorieLog AI',
   description: 'A simple way to track your calories.',
 };
 

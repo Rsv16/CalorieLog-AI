@@ -10,7 +10,7 @@ export function Header() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Leaf className="text-primary-foreground" size={20} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">CalorieCam</h1>
+            <h1 className="text-xl font-bold tracking-tight">CalorieLog AI</h1>
         </Link>
 
         <nav>
