@@ -23,6 +23,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${ptSans.variable}`}>
+      <head>1<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1334041716548901"
+     crossorigin="anonymous"></script></head>
       <body className="font-sans antialiased">
         {children}
         <Toaster />
